@@ -14,6 +14,7 @@ include(bt_soc_empty.cmake)
 
 add_executable(bt_soc_empty
     # Add additional sources here
+    ../led_blinky.c
 )
 
 target_include_directories(bt_soc_empty PUBLIC

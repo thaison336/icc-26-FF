@@ -30,6 +30,7 @@
 #include "sl_bt_api.h"
 #include "sl_main_init.h"
 #include "app_assert.h"
+#include "led_blinky.h"
 #include "app.h"
 
 // The advertising set handle allocated from Bluetooth stack.
@@ -42,6 +43,9 @@ void app_init(void)
   // Put your additional application init code here!                         //
   // This is called once during start-up.                                    //
   /////////////////////////////////////////////////////////////////////////////
+
+  // Khởi tạo module LED Blinky
+  led_blinky_init();
 }
 
 // Application Process Action.
@@ -65,6 +69,9 @@ void app_process_action(void)
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
   sl_status_t sc;
+
+  // Chuyển sự kiện BLE cho module LED Blinky xử lý nếu có (Soft Timer event...)
+  led_blinky_on_event(evt);
 
   switch (SL_BT_MSG_ID(evt->header)) {
     // -------------------------------
@@ -97,11 +104,16 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
     // -------------------------------
     // This event indicates that a new connection was opened.
     case sl_bt_evt_connection_opened_id:
+      // Bắt đầu chớp nháy LED với chu kỳ 500ms khi có kết nối
+      led_blinky_start(500);
       break;
 
     // -------------------------------
     // This event indicates that a connection was closed.
     case sl_bt_evt_connection_closed_id:
+      // Dừng chớp nháy LED và tắt LED khi ngắt kết nối
+      led_blinky_stop();
+
       // Generate data for advertising
       sc = sl_bt_legacy_advertiser_generate_data(advertising_set_handle,
                                                  sl_bt_advertiser_general_discoverable);
