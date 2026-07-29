@@ -24,6 +24,13 @@
         "configurePreset": "project",
         "configuration": "base",
         "targets": ["bt_soc_empty"]
+      },
+      {
+        "name": "flash",
+        "displayName": "Build and Flash bt_soc_empty",
+        "configurePreset": "project",
+        "configuration": "base",
+        "targets": ["flash"]
       }
     ],
     "workflowPresets": [

@@ -62,3 +62,10 @@ add_custom_command(TARGET bt_soc_empty
     COMMAND ${post_build_command}
 )
 endif()
+
+# Flash target for pure CMake workflow
+add_custom_target(flash
+    COMMAND ${POST_BUILD_EXE} flash "$<TARGET_FILE_DIR:bt_soc_empty>/$<TARGET_FILE_BASE_NAME:bt_soc_empty>.hex"
+    DEPENDS bt_soc_empty
+    COMMENT "Flashing firmware to device using Simplicity Commander..."
+)
