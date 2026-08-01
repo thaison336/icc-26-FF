@@ -1,0 +1,141 @@
+package com.example.blewearable.viewmodel
+
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.blewearable.ble.BleConnectionState
+import com.example.blewearable.ble.BleDeviceModel
+import com.example.blewearable.ble.BleManager
+import com.example.blewearable.data.AppDatabase
+import com.example.blewearable.data.BatchTrendSummary
+import com.example.blewearable.data.SensorDataEntity
+import com.example.blewearable.data.SensorRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlin.random.Random
+
+class MainViewModel(application: Application) : AndroidViewModel(application) {
+
+    val bleManager = BleManager(application)
+    private val repository: SensorRepository
+
+    val connectionState: StateFlow<BleConnectionState> = bleManager.connectionState
+    val scannedDevices: StateFlow<List<BleDeviceModel>> = bleManager.scannedDevices
+
+    val recentReadings = MutableStateFlow<List<SensorDataEntity>>(emptyList())
+    val totalCount = MutableStateFlow(0)
+
+    private val _trendData = MutableStateFlow<List<BatchTrendSummary>>(emptyList())
+    val trendData: StateFlow<List<BatchTrendSummary>> = _trendData.asStateFlow()
+
+    private val _selectedTimeFrame = MutableStateFlow(1) // 1 day, 7 days, 30 days
+    val selectedTimeFrame: StateFlow<Int> = _selectedTimeFrame.asStateFlow()
+
+    private val _latestReading = MutableStateFlow<Float?>(null)
+    val latestReading: StateFlow<Float?> = _latestReading.asStateFlow()
+
+    init {
+        val dao = AppDatabase.getDatabase(application).sensorDataDao()
+        repository = SensorRepository(dao)
+
+        // Observe incoming BLE data stream and record to database
+        viewModelScope.launch {
+            bleManager.receivedDataStream.collect { (valNum, rawPayload) ->
+                _latestReading.value = valNum
+                val deviceName = (connectionState.value as? BleConnectionState.Connected)?.deviceName ?: "Wearable"
+                repository.saveReading(valNum, rawPayload, deviceName)
+                refreshTrendData()
+            }
+        }
+
+        // Collect DB updates
+        viewModelScope.launch {
+            repository.recentReadings.collect {
+                recentReadings.value = it
+            }
+        }
+        viewModelScope.launch {
+            repository.totalCount.collect {
+                totalCount.value = it
+            }
+        }
+
+        refreshTrendData()
+    }
+
+    fun startScan() {
+        bleManager.startScan()
+    }
+
+    fun stopScan() {
+        bleManager.stopScan()
+    }
+
+    fun connectToDevice(address: String) {
+        bleManager.connectToDevice(address)
+    }
+
+    fun disconnect() {
+        bleManager.disconnect()
+    }
+
+    fun setTimeFrame(days: Int) {
+        _selectedTimeFrame.value = days
+        refreshTrendData()
+    }
+
+    fun refreshTrendData() {
+        viewModelScope.launch {
+            _trendData.value = repository.getBatchTrendData(_selectedTimeFrame.value)
+        }
+    }
+
+    fun clearDataHistory() {
+        viewModelScope.launch {
+            repository.clearHistory()
+            _latestReading.value = null
+            refreshTrendData()
+        }
+    }
+
+    val emergencyDispatcher = bleManager.emergencyDispatcher
+    val emergencyContactManager = com.example.blewearable.data.EmergencyContactManager(application)
+
+    val isEmergencyActive: StateFlow<Boolean> = emergencyDispatcher.isEmergencyActive
+    val lastEmergencyLog: StateFlow<String?> = emergencyDispatcher.lastEmergencyLog
+
+    fun saveEmergencyContacts(primary: String, secondary: String, message: String) {
+        emergencyContactManager.primaryContact = primary
+        emergencyContactManager.secondaryContact = secondary
+        emergencyContactManager.customSosMessage = message
+    }
+
+    fun triggerTestEmergency() {
+        emergencyDispatcher.triggerEmergency("Manual Test SOS Triggered from App")
+    }
+
+    fun stopEmergencyAlert() {
+        emergencyDispatcher.stopEmergencyAlert()
+    }
+
+    // Helper method to insert mock simulated batch readings for testing without hardware
+    fun generateMockBatchData() {
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val dayMs = 24 * 60 * 60 * 1000L
+            val device = "Demo Wearable Simulator"
+
+            for (i in 0..6) {
+                val timestamp = now - (i * dayMs)
+                val baseValue = 70f + Random.nextInt(-15, 25)
+                for (j in 1..5) {
+                    val valNum = baseValue + Random.nextInt(-5, 5)
+                    repository.saveReading(valNum, "MOCK DATA", device)
+                }
+            }
+            refreshTrendData()
+        }
+    }
+}
