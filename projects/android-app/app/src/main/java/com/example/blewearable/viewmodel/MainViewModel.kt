@@ -102,6 +102,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val emergencyDispatcher = bleManager.emergencyDispatcher
     val emergencyContactManager = com.example.blewearable.data.EmergencyContactManager(application)
+    val stringeeConfigManager = com.example.blewearable.data.StringeeConfigManager(application)
 
     val isEmergencyActive: StateFlow<Boolean> = emergencyDispatcher.isEmergencyActive
     val lastEmergencyLog: StateFlow<String?> = emergencyDispatcher.lastEmergencyLog
@@ -110,6 +111,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         emergencyContactManager.primaryContact = primary
         emergencyContactManager.secondaryContact = secondary
         emergencyContactManager.customSosMessage = message
+    }
+
+    fun saveStringeeConfig(
+        keySid: String,
+        keySecret: String,
+        fromNumber: String,
+        voiceMode: String,
+        ttsText: String,
+        audioUrl: String
+    ) {
+        stringeeConfigManager.keySid = keySid
+        stringeeConfigManager.keySecret = keySecret
+        stringeeConfigManager.fromNumber = fromNumber
+        stringeeConfigManager.voiceMode = voiceMode
+        stringeeConfigManager.ttsText = ttsText
+        stringeeConfigManager.audioUrl = audioUrl
     }
 
     fun triggerTestEmergency() {

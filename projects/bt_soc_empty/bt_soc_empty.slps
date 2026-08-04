@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="ASCII"?>
 <model:MDescriptors xmlns:model="http://www.silabs.com/ss/Studio.ecore">
   <descriptors name="bt_soc_empty">
-    <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.sisdk:2026.6.0._14852171402374425996"/>
+    <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.simplicity_sdk:2026.6.1._11457545592374425997"/>
     <properties key="universalConfig.relativeWorkspacePath" value="..\bt_soc_empty.slcw"/>
     <properties key="universalConfig.generationDirectory" value=""/>
     <properties key="universalConfig.toolchainCompatibility" value="iar llvm gcc"/>

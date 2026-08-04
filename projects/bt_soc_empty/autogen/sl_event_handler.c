@@ -7,15 +7,25 @@
 #include "sl_rail_util_pti.h"
 #include "sl_fem_util.h"
 #include "sl_board_control.h"
+#include "sl_dma_manager_instances.h"
 #include "app.h"
+#include "sl_bt_rtos_adaptation.h"
 #include "sl_bluetooth.h"
+#include "sl_debug_swo.h"
 #include "sl_gpio.h"
+#include "sl_iostream_init_usart_instances.h"
 #include "sl_mbedtls.h"
+#include "sl_simple_button_instances.h"
+#include "sl_simple_led_instances.h"
 #include "psa/crypto.h"
 #include "sl_se_manager.h"
 #include "sli_protocol_crypto.h"
 #include "sli_crypto.h"
+#include "sl_iostream_init_instances.h"
+#include "cmsis_os2.h"
 #include "nvm3_default.h"
+#include "sl_cos.h"
+#include "sl_iostream_handles.h"
 
 void sli_driver_permanent_allocation(void)
 {
@@ -39,6 +49,7 @@ void sl_platform_init(void)
   sl_board_preinit();
   sl_clock_manager_runtime_init();
   sl_board_init();
+  sl_dma_manager_instances_init();
   nvm3_initDefault();
 }
 
@@ -47,9 +58,19 @@ void sli_internal_init_early(void)
   app_init_bt();
 }
 
+void sl_kernel_start(void)
+{
+  sli_bt_rtos_adaptation_kernel_start();
+  osKernelStart();
+}
+
 void sl_driver_init(void)
 {
+  sl_debug_swo_init();
   sl_gpio_init();
+  sl_simple_button_init_instances();
+  sl_simple_led_init_instances();
+  sl_cos_send_config();
 }
 
 void sl_service_init(void)
@@ -61,6 +82,8 @@ void sl_service_init(void)
   sli_protocol_crypto_init();
   sli_crypto_init();
   sli_aes_seed_mask();
+  sl_iostream_init_instances_stage_1();
+  sl_iostream_init_instances_stage_2();
 }
 
 void sl_stack_init(void)
@@ -76,20 +99,13 @@ void sl_internal_app_init(void)
 {
 }
 
-void sli_platform_process_action(void)
+void sl_iostream_init_instances_stage_1(void)
 {
+  sl_iostream_usart_init_instances();
 }
 
-void sli_service_process_action(void)
+void sl_iostream_init_instances_stage_2(void)
 {
-}
-
-void sli_stack_process_action(void)
-{
-  sl_bt_step();
-}
-
-void sli_internal_app_process_action(void)
-{
+  sl_iostream_set_console_instance();
 }
 

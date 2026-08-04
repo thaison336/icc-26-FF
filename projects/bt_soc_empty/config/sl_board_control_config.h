@@ -35,6 +35,8 @@
 
 // <<< end of configuration section >>>
 
+#define SL_BOARD_ENABLE_VCOM                     1
+
 // <<< sl:start pin_tool >>>
 
 // <<< sl:end pin_tool >>>

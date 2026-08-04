@@ -44,5 +44,11 @@
         <properties read="true" read_requirement="mandatory"/>
       </characteristic>
     </service>
+    <service advertise="true" id="sos_service" name="SOS Service" type="primary" uuid="0000ffe0-0000-1000-8000-00805f9b34fb">
+      <characteristic id="sos_characteristic" name="SOS Characteristic" uuid="0000ffe1-0000-1000-8000-00805f9b34fb">
+        <value length="20" type="utf-8" variable_length="true">SOS</value>
+        <properties notify="true" read="true"/>
+      </characteristic>
+    </service>
   </gatt>
 </project>

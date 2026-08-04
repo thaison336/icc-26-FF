@@ -83,6 +83,15 @@ fun DashboardScreen(viewModel: MainViewModel) {
     }
     var isSavedNoticeVisible by remember { mutableStateOf(false) }
 
+    // Stringee State
+    var keySidInput by remember { mutableStateOf(viewModel.stringeeConfigManager.keySid) }
+    var keySecretInput by remember { mutableStateOf(viewModel.stringeeConfigManager.keySecret) }
+    var fromNumberInput by remember { mutableStateOf(viewModel.stringeeConfigManager.fromNumber) }
+    var voiceModeInput by remember { mutableStateOf(viewModel.stringeeConfigManager.voiceMode) }
+    var ttsTextInput by remember { mutableStateOf(viewModel.stringeeConfigManager.ttsText) }
+    var audioUrlInput by remember { mutableStateOf(viewModel.stringeeConfigManager.audioUrl) }
+    var isStringeeSavedNoticeVisible by remember { mutableStateOf(false) }
+
     val scrollState = rememberScrollState()
 
     Column(
@@ -351,6 +360,190 @@ fun DashboardScreen(viewModel: MainViewModel) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Stringee Cloud Telephony Configuration Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(16.dp))
+                    .padding(20.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Call,
+                        contentDescription = "Stringee Setup",
+                        tint = PrimaryBlue
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Stringee Cloud Callout Setup (VoIP Auto-Call)",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Configure Stringee REST API credentials to trigger automated AI Voice calls directly from the cloud when SOS is pressed.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = keySidInput,
+                    onValueChange = { keySidInput = it },
+                    label = { Text("Stringee KEY SID (e.g. SK.0.xxx)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = SurfaceCardBorder,
+                        focusedLabelColor = PrimaryBlue,
+                        unfocusedLabelColor = TextSecondary,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = keySecretInput,
+                    onValueChange = { keySecretInput = it },
+                    label = { Text("Stringee KEY SECRET") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = SurfaceCardBorder,
+                        focusedLabelColor = PrimaryBlue,
+                        unfocusedLabelColor = TextSecondary,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                OutlinedTextField(
+                    value = fromNumberInput,
+                    onValueChange = { fromNumberInput = it },
+                    label = { Text("Stringee Hotline Number (e.g. 8424xxx / Virtual Number)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = SurfaceCardBorder,
+                        focusedLabelColor = PrimaryBlue,
+                        unfocusedLabelColor = TextSecondary,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text("Voice Message Mode:", style = MaterialTheme.typography.labelLarge, color = TextPrimary)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val isTts = voiceModeInput == com.example.blewearable.data.StringeeConfigManager.MODE_TTS
+                    Button(
+                        onClick = { voiceModeInput = com.example.blewearable.data.StringeeConfigManager.MODE_TTS },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isTts) PrimaryBlue else SurfaceCard),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isTts) "✓ AI Text-to-Speech" else "AI Text-to-Speech")
+                    }
+
+                    val isAudio = voiceModeInput == com.example.blewearable.data.StringeeConfigManager.MODE_AUDIO_URL
+                    Button(
+                        onClick = { voiceModeInput = com.example.blewearable.data.StringeeConfigManager.MODE_AUDIO_URL },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isAudio) PrimaryBlue else SurfaceCard),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(if (isAudio) "✓ Custom MP3 Link" else "Custom MP3 Link")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                if (voiceModeInput == com.example.blewearable.data.StringeeConfigManager.MODE_TTS) {
+                    OutlinedTextField(
+                        value = ttsTextInput,
+                        onValueChange = { ttsTextInput = it },
+                        label = { Text("Vietnamese AI Text-To-Speech Message") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryBlue,
+                            unfocusedBorderColor = SurfaceCardBorder,
+                            focusedLabelColor = PrimaryBlue,
+                            unfocusedLabelColor = TextSecondary,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
+                    )
+                } else {
+                    OutlinedTextField(
+                        value = audioUrlInput,
+                        onValueChange = { audioUrlInput = it },
+                        label = { Text("Custom Pre-Recorded Audio File URL (.mp3)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PrimaryBlue,
+                            unfocusedBorderColor = SurfaceCardBorder,
+                            focusedLabelColor = PrimaryBlue,
+                            unfocusedLabelColor = TextSecondary,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Button(
+                    onClick = {
+                        viewModel.saveStringeeConfig(
+                            keySidInput,
+                            keySecretInput,
+                            fromNumberInput,
+                            voiceModeInput,
+                            ttsTextInput,
+                            audioUrlInput
+                        )
+                        isStringeeSavedNoticeVisible = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Save Stringee")
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Save Stringee API Settings")
+                }
+
+                if (isStringeeSavedNoticeVisible) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "✓ Stringee API Settings saved successfully!",
+                        color = StatusGreen,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
 
         // Live Metric Card
         Card(

@@ -29,6 +29,7 @@ class EmergencyDispatcher(private val context: Context) {
     var enableSoundAlert: Boolean = false
 
     private val contactManager = EmergencyContactManager(context)
+    val stringeeCalloutService = StringeeCalloutService(context)
     private var ringtone: Ringtone? = null
     private var vibrator: Vibrator? = null
 
@@ -42,18 +43,26 @@ class EmergencyDispatcher(private val context: Context) {
     fun triggerEmergency(triggerReason: String = "BLE Emergency Signal Received") {
         Log.w("EmergencyDispatcher", "🚨 EMERGENCY TRIGGERED: $triggerReason")
         _isEmergencyActive.value = true
-        _lastEmergencyLog.value = "Triggered: $triggerReason at ${System.currentTimeMillis()}"
+        _lastEmergencyLog.value = "Dispatching Stringee Auto Call for $triggerReason..."
 
-        // 1. Play Alarm Sound & Vibrate
-        startRingingAndVibration()
+        // Paused Device Features (Kept for future unpausing):
+        // 1. sendEmergencySms(triggerReason)
+        // 2. initiateEmergencyCall()
 
-        // 2. Send SMS to all emergency contacts
-        sendEmergencySms(triggerReason)
-
-        // 3. Initiate Automatic Phone Call after short delay (to ensure SMS dispatches first)
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(1500)
-            initiateEmergencyCall()
+        // Execute Stringee Cloud Auto Callout asynchronously on IO thread
+        CoroutineScope(Dispatchers.IO).launch {
+            val primaryContact = contactManager.primaryContact
+            val result = stringeeCalloutService.makeEmergencyCallout(primaryContact, triggerReason)
+            when (result) {
+                is StringeeCallResult.Success -> {
+                    Log.i("EmergencyDispatcher", "Stringee SUCCESS: ${result.message}")
+                    _lastEmergencyLog.value = "✓ Stringee Call Sent to $primaryContact (ID: ${result.callId})"
+                }
+                is StringeeCallResult.Error -> {
+                    Log.e("EmergencyDispatcher", "Stringee ERROR: ${result.errorReason}")
+                    _lastEmergencyLog.value = "✗ Stringee Error: ${result.errorReason}"
+                }
+            }
         }
     }
 

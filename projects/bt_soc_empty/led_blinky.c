@@ -5,9 +5,22 @@
 #include "led_blinky.h"
 #include "sl_gpio.h"
 #include "pin_config.h"
+#if __has_include("sl_simple_led_led0_config.h")
+#include "sl_simple_led_led0_config.h"
+#endif
 #include "app_assert.h"
 
-// Biến cấu hình chân LED từ pin_config.h
+#ifndef LED_PORT
+#if defined(SL_SIMPLE_LED_LED0_PORT)
+#define LED_PORT SL_SIMPLE_LED_LED0_PORT
+#define LED_PIN  SL_SIMPLE_LED_LED0_PIN
+#else
+#define LED_PORT SL_GPIO_PORT_A
+#define LED_PIN  4
+#endif
+#endif
+
+// Biến cấu hình chân LED
 static const sl_gpio_t led_gpio = { .port = LED_PORT, .pin = LED_PIN };
 
 void led_blinky_init(void)
