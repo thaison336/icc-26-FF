@@ -22,6 +22,7 @@ object StringeeJwtHelper {
         val payloadJson = JSONObject().apply {
             put("jti", "$keySid-$nowSec")
             put("iss", keySid)
+            put("iat", nowSec)
             put("exp", expSec)
             put("rest_api", true)
         }

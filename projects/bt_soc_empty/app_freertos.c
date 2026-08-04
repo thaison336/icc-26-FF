@@ -78,7 +78,9 @@ static void app_task(void *p_arg)
 {
   (void)p_arg;
   while (1) {
-    app_process_action();
+    if (app_is_process_required()) {
+      app_process_action();
+    }
   }
 }
 

@@ -37,6 +37,9 @@ class StringeeCalloutService(private val context: Context) {
                 stringeeConfig.keySecret
             )
 
+            val formattedFrom = formatPhoneNumber(stringeeConfig.fromNumber)
+            val formattedTo = formatPhoneNumber(toPhoneNumber)
+
             val url = URL("https://api.stringee.com/v1/call2/callout")
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
@@ -52,16 +55,16 @@ class StringeeCalloutService(private val context: Context) {
                 // From object
                 put("from", JSONObject().apply {
                     put("type", "external")
-                    put("number", stringeeConfig.fromNumber)
-                    put("alias", stringeeConfig.fromNumber)
+                    put("number", formattedFrom)
+                    put("alias", formattedFrom)
                 })
 
                 // To array
                 put("to", JSONArray().apply {
                     put(JSONObject().apply {
                         put("type", "external")
-                        put("number", toPhoneNumber.trim())
-                        put("alias", toPhoneNumber.trim())
+                        put("number", formattedTo)
+                        put("alias", formattedTo)
                     })
                 })
 
@@ -106,9 +109,10 @@ class StringeeCalloutService(private val context: Context) {
                 val msg = jsonResp.optString("msg", "Unknown response")
                 if (rCode == 0) {
                     val callId = jsonResp.optString("call_id", "N/A")
-                    StringeeCallResult.Success(callId, "Stringee Auto Callout Dispatched to $toPhoneNumber (Call ID: $callId)")
+                    StringeeCallResult.Success(callId, "Stringee Auto Callout Dispatched to $formattedTo (Call ID: $callId)")
                 } else {
-                    StringeeCallResult.Error("Stringee API Error (r=$rCode): $msg")
+                    val friendlyError = getFriendlyStringeeError(rCode, msg)
+                    StringeeCallResult.Error(friendlyError)
                 }
             } else {
                 StringeeCallResult.Error("HTTP Error $responseCode: $responseText")
@@ -116,6 +120,27 @@ class StringeeCalloutService(private val context: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Exception making Stringee callout: ${e.message}", e)
             StringeeCallResult.Error("Failed to make callout: ${e.message}")
+        }
+    }
+    private fun formatPhoneNumber(rawNumber: String): String {
+        var cleaned = rawNumber.trim().replace(" ", "").replace("-", "")
+        if (cleaned.startsWith("+")) {
+            cleaned = cleaned.substring(1)
+        }
+        // Convert Vietnamese 09xxx / 03xxx / 07xxx / 08xxx to 84xxx format if needed
+        if (cleaned.startsWith("0") && cleaned.length >= 10) {
+            cleaned = "84" + cleaned.substring(1)
+        }
+        return cleaned
+    }
+
+    private fun getFriendlyStringeeError(rCode: Int, msg: String): String {
+        return when (rCode) {
+            1 -> "Stringee Error (r=1): Key SID or Key Secret is invalid/expired. Please re-check your Stringee API Key SID and Key Secret in settings."
+            2 -> "Stringee Error (r=2): From/To Number invalid or From Number is not a registered Stringee Hotline. Make sure 'From Number' is assigned to your Stringee project dashboard."
+            3 -> "Stringee Error (r=3): Account balance insufficient. Please top up your Stringee developer account."
+            4 -> "Stringee Error (r=4): Access denied or Project inactive on Stringee Dashboard."
+            else -> "Stringee API Error (r=$rCode): $msg"
         }
     }
 
