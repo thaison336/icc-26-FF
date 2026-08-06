@@ -100,6 +100,7 @@ component:
 - package: simplicity_sdk
   instance:
   - btn0
+  - btn1
   vendor: silabs
   id: simple_button
 - package: simplicity_sdk
