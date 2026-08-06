@@ -10,7 +10,7 @@ referenced in this SBOM.)
 -->
 <bom xmlns="http://cyclonedx.org/schema/bom/1.6" version="1">
   <metadata>
-    <timestamp>2026-08-06T08:11:19Z</timestamp>
+    <timestamp>2026-08-06T08:12:09Z</timestamp>
     <authors>
       <author>
         <name>Silicon Laboratories, Inc.</name>
@@ -1837,6 +1837,36 @@ referenced in this SBOM.)
         </component>
         <component bom-ref="silabs.simplicity_sdk:2026.6.1:udelay_cortexm" type="library">
           <name>Microsecond Delay Cortex-M</name>
+          <version>2026.6.1</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.1:simple_button" type="library">
+          <name>Simple Button</name>
+          <version>2026.6.1</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.1:button" type="library">
+          <name>Generic Button API</name>
+          <version>2026.6.1</version>
+	      <supplier>
+	        <name>Silicon Laboratories, Inc.</name>
+	      </supplier>
+          <licenses>
+            <expression>Zlib</expression>
+          </licenses>
+        </component>
+        <component bom-ref="silabs.simplicity_sdk:2026.6.1:simple_button_core" type="library">
+          <name>Simple Button Configuration</name>
           <version>2026.6.1</version>
 	      <supplier>
 	        <name>Silicon Laboratories, Inc.</name>

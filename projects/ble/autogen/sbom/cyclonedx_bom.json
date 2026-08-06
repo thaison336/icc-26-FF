@@ -3,7 +3,7 @@
   "specVersion" : "1.6",
   "version" : 1,
   "metadata" : {
-    "timestamp" : "2026-08-06T08:11:19Z",
+    "timestamp" : "2026-08-06T08:12:09Z",
     "authors" : [ {
       "name" : "Silicon Laboratories, Inc."
     } ],
@@ -2174,6 +2174,42 @@
       "type" : "library",
       "bom-ref" : "silabs.simplicity_sdk:2026.6.1:udelay_cortexm",
       "name" : "Microsecond Delay Cortex-M",
+      "version" : "2026.6.1",
+      "supplier" : {
+        "name" : "Silicon Laboratories, Inc."
+      },
+      "licenses" : [ {
+        "expression" : "Zlib"
+      } ]
+    }, {
+      "scope" : "required",
+      "type" : "library",
+      "bom-ref" : "silabs.simplicity_sdk:2026.6.1:simple_button",
+      "name" : "Simple Button",
+      "version" : "2026.6.1",
+      "supplier" : {
+        "name" : "Silicon Laboratories, Inc."
+      },
+      "licenses" : [ {
+        "expression" : "Zlib"
+      } ]
+    }, {
+      "scope" : "required",
+      "type" : "library",
+      "bom-ref" : "silabs.simplicity_sdk:2026.6.1:button",
+      "name" : "Generic Button API",
+      "version" : "2026.6.1",
+      "supplier" : {
+        "name" : "Silicon Laboratories, Inc."
+      },
+      "licenses" : [ {
+        "expression" : "Zlib"
+      } ]
+    }, {
+      "scope" : "required",
+      "type" : "library",
+      "bom-ref" : "silabs.simplicity_sdk:2026.6.1:simple_button_core",
+      "name" : "Simple Button Configuration",
       "version" : "2026.6.1",
       "supplier" : {
         "name" : "Silicon Laboratories, Inc."

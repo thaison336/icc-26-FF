@@ -13,7 +13,7 @@ DocumentNamespace: https://silabs.com
 
 ## Creation Information
 Creator: Organization: Silicon Laboratories, Inc.
-Created: 2026-08-06T08:11:19Z
+Created: 2026-08-06T08:12:09Z
 ## Relationships
 Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-silabs.simplicity_sdk-2026.6.1
 
@@ -195,6 +195,9 @@ Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.sim
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-trustzone_unaware
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-udelay
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-udelay_cortexm
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-button
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button_core
 
 ## Package Information
 PackageName: EFR32MG26B510F3200IM48
@@ -2155,3 +2158,36 @@ PackageSupplier: Organization: Silicon Laboratories, Inc.
 PackageLicenseConcluded: Zlib
 ## Relationships
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-udelay_cortexm CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1
+
+## Package Information
+PackageName: Simple Button
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button
+PackageVersion: 2026.6.1
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1
+
+## Package Information
+PackageName: Generic Button API
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.1-button
+PackageVersion: 2026.6.1
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-button CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1
+
+## Package Information
+PackageName: Simple Button Configuration
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button_core
+PackageVersion: 2026.6.1
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button_core CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1

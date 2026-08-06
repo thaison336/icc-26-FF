@@ -12,6 +12,7 @@
 #include "sl_bluetooth.h"
 #include "sl_gpio.h"
 #include "sl_mbedtls.h"
+#include "sl_simple_button_instances.h"
 #include "psa/crypto.h"
 #include "sl_se_manager.h"
 #include "sli_protocol_crypto.h"
@@ -58,6 +59,7 @@ void sl_kernel_start(void)
 void sl_driver_init(void)
 {
   sl_gpio_init();
+  sl_simple_button_init_instances();
 }
 
 void sl_service_init(void)

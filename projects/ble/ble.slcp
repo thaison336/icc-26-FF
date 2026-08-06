@@ -95,6 +95,11 @@ component:
   vendor: silabs
   id: rail_util_pti
 - package: simplicity_sdk
+  instance:
+  - btn0
+  vendor: silabs
+  id: simple_button
+- package: simplicity_sdk
   vendor: silabs
   id: sl_main
 autoselected_components:
@@ -194,6 +199,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: brd2709a_config
+- package: simplicity_sdk
+  vendor: silabs
+  id: button
 - package: simplicity_sdk
   vendor: silabs
   id: clock_manager_init_hal_s2
@@ -527,6 +535,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: se_manager_mailbox_default
+- package: simplicity_sdk
+  vendor: silabs
+  id: simple_button_core
 - package: simplicity_sdk
   vendor: silabs
   id: sl_assert
