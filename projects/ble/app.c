@@ -1,12 +1,13 @@
 /***************************************************************************//**
  * @file
- * @brief Core application logic integrated with FreeRTOS BLE tasks.
+ * @brief Core application logic integrated with FreeRTOS BLE and Logger tasks.
  *******************************************************************************/
 #include "sl_bt_api.h"
 #include "sl_main_init.h"
 #include "app_assert.h"
 #include "app.h"
 #include "ble_task.h"
+#include "log_task.h"
 #include "sl_simple_button_instances.h"
 #include "sl_simple_button.h"
 
@@ -36,7 +37,13 @@ void app_process_action(void)
           msg.len,
           msg.payload
         );
-        (void)sc;
+        if (sc == SL_STATUS_OK) {
+          log_fmt("[BLE TX] Notification sent successfully! Handle=%d, Len=%d\r\n", conn_handle, msg.len);
+        } else {
+          log_fmt("[BLE TX ERR] Notification failed with status 0x%04X\r\n", sc);
+        }
+      } else {
+        log_msg("[BLE TX WARN] Discarded notification (Not connected)\r\n");
       }
     }
   }
@@ -48,7 +55,8 @@ void app_process_action(void)
  *****************************************************************************/
 void sl_simple_button_on_change(const sl_button_t *handle)
 {
-  if (handle == &sl_button_btn0 && sl_button_get_state(handle) == SL_SIMPLE_BUTTON_PRESSED) {
+  if (sl_button_get_state(handle) == SL_SIMPLE_BUTTON_PRESSED) {
+    log_msg("[BTN0] Button pressed! Queuing SOS notification...\r\n");
     // Send "SOS" message via FreeRTOS Queue
     if (ble_send_msg("SOS", 3)) {
       app_proceed();
@@ -70,6 +78,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
     // -------------------------------
     // This event indicates the device has started and the radio is ready.
     case sl_bt_evt_system_boot_id:
+      log_msg("[BLE] System boot event received. Initializing advertiser...\r\n");
       // Create an advertising set.
       sc = sl_bt_advertiser_create_set(&advertising_set_handle);
       app_assert_status(sc);
@@ -92,6 +101,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
       sc = sl_bt_legacy_advertiser_start(advertising_set_handle,
                                          sl_bt_legacy_advertiser_connectable);
       app_assert_status(sc);
+      log_msg("[BLE] Advertising started. Ready for phone connection.\r\n");
       break;
 
     // -------------------------------
@@ -100,6 +110,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
       {
         uint8_t conn_handle = evt->data.evt_connection_opened.connection;
         ble_set_connection_state(true, conn_handle);
+        log_fmt("[BLE] Connection opened! Active handle: %d\r\n", conn_handle);
       }
       break;
 
@@ -107,6 +118,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
     // This event indicates that a connection was closed.
     case sl_bt_evt_connection_closed_id:
       ble_set_connection_state(false, SL_BT_INVALID_CONNECTION_HANDLE);
+      log_msg("[BLE] Connection closed. Restarting advertising...\r\n");
 
       // Generate data for advertising
       sc = sl_bt_legacy_advertiser_generate_data(advertising_set_handle,
