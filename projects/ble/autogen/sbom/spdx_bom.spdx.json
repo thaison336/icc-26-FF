@@ -5,7 +5,7 @@
   "name" : "Silicon-Laboratories",
   "documentNamespace" : "https://silabs.com",
   "creationInfo" : {
-    "created" : "2026-08-06T08:12:09Z",
+    "created" : "2026-08-06T08:18:15Z",
     "creators" : [ "Tool: Silicon Labs Configuration Tooling" ]
   },
   "comment" : "TERMS OF USE - SILICON LABORATORIES INC.\n(With respect to Silicon Labs software components, this Software Bill of Materials (SBOM) is based upon Silicon Labs'\nreview and analysis of the code version when released.  It is provided \"AS IS\" and does not modify, change or alter\nthe terms or conditions of your use of Silicon Labs' software and/or SDKs based upon license terms and/or agreements\nassociated with this software or SDKs when distributed to you, received by you, or installed by you.  Further, no\nwarranties or obligations are created by this SBOM.  It is your obligation to comply with the terms of licenses\nreferenced in this SBOM.)",
@@ -1491,6 +1491,30 @@
     "downloadLocation" : "NOASSERTION",
     "supplier" : "Organization: Silicon Laboratories, Inc.",
     "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led",
+    "name" : "Simple LED",
+    "versionInfo" : "2026.6.1",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.1-led",
+    "name" : "Generic LED API",
+    "versionInfo" : "2026.6.1",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
+  }, {
+    "SPDXID" : "SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led_core",
+    "name" : "Simple LED Core",
+    "versionInfo" : "2026.6.1",
+    "primaryPackagePurpose" : "LIBRARY",
+    "downloadLocation" : "NOASSERTION",
+    "supplier" : "Organization: Silicon Laboratories, Inc.",
+    "licenseConcluded" : "Zlib"
   } ],
   "relationships" : [ {
     "spdxElementId" : "SPDXRef-DOCUMENT",
@@ -2211,6 +2235,18 @@
   }, {
     "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.1",
     "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button_core",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.1",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.1",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.1-led",
+    "relationshipType" : "CONTAINS"
+  }, {
+    "spdxElementId" : "SPDXRef-silabs.simplicity_sdk-2026.6.1",
+    "relatedSpdxElement" : "SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led_core",
     "relationshipType" : "CONTAINS"
   } ]
 }

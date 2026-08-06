@@ -13,7 +13,7 @@ DocumentNamespace: https://silabs.com
 
 ## Creation Information
 Creator: Organization: Silicon Laboratories, Inc.
-Created: 2026-08-06T08:12:09Z
+Created: 2026-08-06T08:18:15Z
 ## Relationships
 Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-silabs.simplicity_sdk-2026.6.1
 
@@ -198,6 +198,9 @@ Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.sim
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-button
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button_core
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-led
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1 CONTAINS SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led_core
 
 ## Package Information
 PackageName: EFR32MG26B510F3200IM48
@@ -2191,3 +2194,36 @@ PackageSupplier: Organization: Silicon Laboratories, Inc.
 PackageLicenseConcluded: Zlib
 ## Relationships
 Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_button_core CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1
+
+## Package Information
+PackageName: Simple LED
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led
+PackageVersion: 2026.6.1
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1
+
+## Package Information
+PackageName: Generic LED API
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.1-led
+PackageVersion: 2026.6.1
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-led CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1
+
+## Package Information
+PackageName: Simple LED Core
+SPDXID: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led_core
+PackageVersion: 2026.6.1
+PrimaryPackagePurpose: LIBRARY
+PackageDownloadLocation: NOASSERTION
+PackageSupplier: Organization: Silicon Laboratories, Inc.
+PackageLicenseConcluded: Zlib
+## Relationships
+Relationship: SPDXRef-silabs.simplicity_sdk-2026.6.1-simple_led_core CONTAINED_BY SPDXRef-silabs.simplicity_sdk-2026.6.1

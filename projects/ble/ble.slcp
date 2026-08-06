@@ -100,6 +100,12 @@ component:
   vendor: silabs
   id: simple_button
 - package: simplicity_sdk
+  instance:
+  - led0
+  - led1
+  vendor: silabs
+  id: simple_led
+- package: simplicity_sdk
   vendor: silabs
   id: sl_main
 autoselected_components:
@@ -360,6 +366,9 @@ autoselected_components:
   id: interrupt_manager_cortexm
 - package: simplicity_sdk
   vendor: silabs
+  id: led
+- package: simplicity_sdk
+  vendor: silabs
   id: mbedtls_adjust_config
 - package: simplicity_sdk
   vendor: silabs
@@ -538,6 +547,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: simple_button_core
+- package: simplicity_sdk
+  vendor: silabs
+  id: simple_led_core
 - package: simplicity_sdk
   vendor: silabs
   id: sl_assert

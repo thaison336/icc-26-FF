@@ -3,7 +3,7 @@
   "specVersion" : "1.6",
   "version" : 1,
   "metadata" : {
-    "timestamp" : "2026-08-06T08:12:09Z",
+    "timestamp" : "2026-08-06T08:18:15Z",
     "authors" : [ {
       "name" : "Silicon Laboratories, Inc."
     } ],
@@ -2210,6 +2210,42 @@
       "type" : "library",
       "bom-ref" : "silabs.simplicity_sdk:2026.6.1:simple_button_core",
       "name" : "Simple Button Configuration",
+      "version" : "2026.6.1",
+      "supplier" : {
+        "name" : "Silicon Laboratories, Inc."
+      },
+      "licenses" : [ {
+        "expression" : "Zlib"
+      } ]
+    }, {
+      "scope" : "required",
+      "type" : "library",
+      "bom-ref" : "silabs.simplicity_sdk:2026.6.1:simple_led",
+      "name" : "Simple LED",
+      "version" : "2026.6.1",
+      "supplier" : {
+        "name" : "Silicon Laboratories, Inc."
+      },
+      "licenses" : [ {
+        "expression" : "Zlib"
+      } ]
+    }, {
+      "scope" : "required",
+      "type" : "library",
+      "bom-ref" : "silabs.simplicity_sdk:2026.6.1:led",
+      "name" : "Generic LED API",
+      "version" : "2026.6.1",
+      "supplier" : {
+        "name" : "Silicon Laboratories, Inc."
+      },
+      "licenses" : [ {
+        "expression" : "Zlib"
+      } ]
+    }, {
+      "scope" : "required",
+      "type" : "library",
+      "bom-ref" : "silabs.simplicity_sdk:2026.6.1:simple_led_core",
+      "name" : "Simple LED Core",
       "version" : "2026.6.1",
       "supplier" : {
         "name" : "Silicon Laboratories, Inc."
