@@ -36,6 +36,8 @@
 #include "app_assert.h"
 #include "app.h"
 
+#include "ble_task.h"
+
 #define APP_TASK_NAME          "app_task"
 #define APP_TASK_STACK_SIZE    512u
 #define APP_TASK_PRIO          24u
@@ -55,6 +57,10 @@ static SemaphoreHandle_t app_mutex_handle = NULL;
 void app_init_bt(void)
 {
   BaseType_t ret;
+
+  // Initialize FreeRTOS BLE tasks, queues, and event groups
+  ble_task_init();
+
   // Create the task for sl_app_process_action
   ret = xTaskCreate(app_task,
                     APP_TASK_NAME,
