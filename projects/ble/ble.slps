@@ -2,7 +2,7 @@
 <model:MDescriptors xmlns:model="http://www.silabs.com/ss/Studio.ecore">
   <descriptors name="ble">
     <properties key="projectCommon.sdkId" value="com.silabs.sdk.stack.simplicity_sdk:2026.6.1._11457545592374425997"/>
-    <properties key="universalConfig.relativeWorkspacePath" value="..\New folder.slcw"/>
+    <properties key="universalConfig.relativeWorkspacePath" value="..\ble.slcw"/>
     <properties key="universalConfig.generationDirectory" value=""/>
     <properties key="universalConfig.toolchainCompatibility" value="iar llvm gcc"/>
     <properties key="projectCommon.overwriteCopiedSources" value="false"/>
