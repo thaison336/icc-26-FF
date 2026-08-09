@@ -38,7 +38,7 @@ void app_process_action(void)
           msg.payload
         );
         if (sc == SL_STATUS_OK) {
-          log_fmt("[BLE TX] Notification sent successfully! Handle=%d, Len=%d\r\n", conn_handle, msg.len);
+          log_fmt("[BLE TX] Notification sent! Handle=%d, Payload='%.*s'\r\n", conn_handle, msg.len, msg.payload);
         } else {
           log_fmt("[BLE TX ERR] Notification failed with status 0x%04X\r\n", sc);
         }
@@ -51,13 +51,23 @@ void app_process_action(void)
 
 /**************************************************************************//**
  * Hardware Button change callback (Simple Button driver).
- * Called when BTN0 state changes.
+ * Called when BTN0 or BTN1 state changes.
  *****************************************************************************/
 void sl_simple_button_on_change(const sl_button_t *handle)
 {
-  if (sl_button_get_state(handle) == SL_SIMPLE_BUTTON_PRESSED) {
-    log_msg("[BTN0] Button pressed! Queuing SOS notification...\r\n");
-    // Send "SOS" message via FreeRTOS Queue
+  sl_button_state_t state = sl_button_get_state(handle);
+  const char *state_str = (state == SL_SIMPLE_BUTTON_PRESSED) ? "PRESSED" : "RELEASED";
+
+  // Check if the event is from BTN0 or BTN1 (if defined)
+  if (handle == &sl_button_btn0) {
+    log_fmt("[STATUS] BTN0 State: %s\r\n", state_str);
+  } else {
+    log_fmt("[STATUS] BTN1 State: %s\r\n", state_str);
+  }
+
+  // Trigger SOS alert on press event
+  if (state == SL_SIMPLE_BUTTON_PRESSED) {
+    log_msg("[BTN0] SOS Alert Triggered! Queuing BLE notification...\r\n");
     if (ble_send_msg("SOS", 3)) {
       app_proceed();
     }

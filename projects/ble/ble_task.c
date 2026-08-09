@@ -1,6 +1,6 @@
 /***************************************************************************//**
  * @file ble_task.c
- * @brief Implementation of modular FreeRTOS tasks, queues, and event groups for BLE.
+ * @brief Implementation of modular FreeRTOS tasks, queues, and event groups for BLE and Buttons.
  ******************************************************************************/
 #include <string.h>
 #include "ble_task.h"
@@ -8,6 +8,7 @@
 #include "sl_bt_api.h"
 #include "sl_simple_led_instances.h"
 #include "sl_simple_led.h"
+#include "sl_simple_button_instances.h"
 #include "app_assert.h"
 #include "gatt_db.h"
 
@@ -32,6 +33,26 @@ static uint8_t active_connection = SL_BT_INVALID_CONNECTION_HANDLE;
 #define LED_TASK_PRIO        (tskIDLE_PRIORITY + 1u)
 
 static TaskHandle_t led_task_handle = NULL;
+
+// Button Polling Task Configuration
+#define BUTTON_TASK_NAME        "button_task"
+#define BUTTON_TASK_STACK_SIZE  256u
+#define BUTTON_TASK_PRIO        (tskIDLE_PRIORITY + 2u)
+
+static TaskHandle_t button_task_handle = NULL;
+
+/***************************************************************************//**
+ * FreeRTOS Task to poll hardware buttons every 20ms with debouncing.
+ * Ensures sl_simple_button_on_change() fires reliably on all presses/releases.
+ ******************************************************************************/
+static void button_task(void *p_arg)
+{
+  (void)p_arg;
+  while (1) {
+    sl_simple_button_poll_instances();
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
 
 /***************************************************************************//**
  * FreeRTOS Task to handle LED0 state based on BLE Connection State.
@@ -76,6 +97,15 @@ void ble_task_init(void)
                               LED_TASK_PRIO,
                               &led_task_handle);
   app_assert(ret == pdPASS, "LED task creation failed.");
+
+  // Create Button Task
+  BaseType_t ret_btn = xTaskCreate(button_task,
+                                   BUTTON_TASK_NAME,
+                                   BUTTON_TASK_STACK_SIZE,
+                                   NULL,
+                                   BUTTON_TASK_PRIO,
+                                   &button_task_handle);
+  app_assert(ret_btn == pdPASS, "Button task creation failed.");
 }
 
 bool ble_send_msg(const char *data, uint16_t len)
