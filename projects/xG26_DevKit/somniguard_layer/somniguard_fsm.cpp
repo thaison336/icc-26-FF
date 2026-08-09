@@ -363,7 +363,7 @@ void somniguard_fsm_task(void *pvParameters)
         case FSM_TOP_INACTIVE:
         { // Trang thai khong hoat dong (tat nguon thiet bi)
             // Thiet bi chi duoc bat lai khi nguoi dung nhan nut nguon (chuyển top_state sang ACTIVE_MODE)
-            somniguard_led_display(FSM_TOP_OFF_FINGER_SUSPEND);
+            somniguard_led_display(FSM_TOP_INACTIVE);
 
             fsm->vibrate_level = 0;
             fsm->buzzer_alarm = false;
@@ -794,7 +794,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
             // =================================================================
             case SUB_SLEEP_BUFFERING:
                 // Entry action: Config sensor 1 lần
-                if (!fsm->sleep_buffering_entry_done)
+                if (!fsm->sleep_buffering_entry_done && fsm->prev_top_state != FSM_TOP_DEEP_ANALYSIS)
                 {
                     fsm->vibrate_level = 0;
                     fsm->buzzer_alarm = false;

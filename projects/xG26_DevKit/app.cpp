@@ -94,48 +94,48 @@ void DataProcessingTask(void *pvParameters)
     }
 }
 
-// =========================================================================
-// Cấu hình Chân RGB LED Báo Trạng Thái Hệ Thống (xG26 DevKit BRD2608A / DK2608A)
-// - Trên kit BRD2608A, LED RGB (U12) được nối với các chân GPIO:
-//   + RGB RED:   gpioPortA, pin 4 (hoặc gpioPortB, pin 4)
-//   + RGB GREEN: gpioPortB, pin 0
-//   + RGB BLUE:  gpioPortB, pin 2
-// =========================================================================
-#define SYSTEM_STATUS_LED_PIN 4 // Mặc định dùng kênh RED/BLUE trên BRD2608A
-#define SYSTEM_STATUS_LED_PORT gpioPortB
-// Task nhấp nháy LED báo trạng thái thiết bị đang hoạt động (Toggle 500ms ON / 500ms OFF để tương thích 100% Active-Low & Active-High)
-// Đặt % Cường độ sáng mong muốn (Từ 1% đến 100%)
-// Mặc định 10% -> Tiết kiệm pin tối đa và dịu mắt khi đeo ngủ ban đêm
+// // =========================================================================
+// // Cấu hình Chân RGB LED Báo Trạng Thái Hệ Thống (xG26 DevKit BRD2608A / DK2608A)
+// // - Trên kit BRD2608A, LED RGB (U12) được nối với các chân GPIO:
+// //   + RGB RED:   gpioPortA, pin 4 (hoặc gpioPortB, pin 4)
+// //   + RGB GREEN: gpioPortB, pin 0
+// //   + RGB BLUE:  gpioPortB, pin 2
+// // =========================================================================
+// #define SYSTEM_STATUS_LED_PIN 4 // Mặc định dùng kênh RED/BLUE trên BRD2608A
+// #define SYSTEM_STATUS_LED_PORT gpioPortB
+// // Task nhấp nháy LED báo trạng thái thiết bị đang hoạt động (Toggle 500ms ON / 500ms OFF để tương thích 100% Active-Low & Active-High)
+// // Đặt % Cường độ sáng mong muốn (Từ 1% đến 100%)
+// // Mặc định 10% -> Tiết kiệm pin tối đa và dịu mắt khi đeo ngủ ban đêm
 
-#define SYSTEM_STATUS_LED_BRIGHTNESS_PERCENT 10
-// Task nhấp nháy TẤT CẢ các chân LED / RGB LED trên kit BRD2608A Rev A04
-// - PA04: RGB Red | PB00: RGB Green | PB02: RGB Blue | PB04: LED0 | PB05: LED1
-void LedBlinkyTask(void *pvParameters)
-{
-    (void)pvParameters;
+// #define SYSTEM_STATUS_LED_BRIGHTNESS_PERCENT 10
+// // Task nhấp nháy TẤT CẢ các chân LED / RGB LED trên kit BRD2608A Rev A04
+// // - PA04: RGB Red | PB00: RGB Green | PB02: RGB Blue | PB04: LED0 | PB05: LED1
+// void LedBlinkyTask(void *pvParameters)
+// {
+//     (void)pvParameters;
 
-    // Cấu hình tất cả các chân LED làm Output Push-Pull
-    GPIO_PinModeSet(gpioPortA, 4, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortB, 0, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortB, 2, gpioModePushPull, 1);
+//     // Cấu hình tất cả các chân LED làm Output Push-Pull
+//     GPIO_PinModeSet(gpioPortA, 4, gpioModePushPull, 1);
+//     GPIO_PinModeSet(gpioPortB, 0, gpioModePushPull, 1);
+//     GPIO_PinModeSet(gpioPortB, 2, gpioModePushPull, 1);
 
-    while (1)
-    {
-        // 1. Kéo xuống LOW (Mạch Active-Low trên BRD2608A: Pull 0 = SÁNG TẤT CẢ LED)
-        GPIO_PinOutClear(gpioPortA, 4);
-        GPIO_PinOutClear(gpioPortB, 0);
-        GPIO_PinOutClear(gpioPortB, 2);
+//     while (1)
+//     {
+//         // 1. Kéo xuống LOW (Mạch Active-Low trên BRD2608A: Pull 0 = SÁNG TẤT CẢ LED)
+//         GPIO_PinOutClear(gpioPortA, 4);
+//         GPIO_PinOutClear(gpioPortB, 0);
+//         GPIO_PinOutClear(gpioPortB, 2);
 
-        vTaskDelay(pdMS_TO_TICKS(500));
+//         vTaskDelay(pdMS_TO_TICKS(500));
 
-        // 2. Kéo lên HIGH (Pull 1 = TẮT TẤT CẢ LED)
-        GPIO_PinOutSet(gpioPortA, 4);
-        GPIO_PinOutSet(gpioPortB, 0);
-        GPIO_PinOutSet(gpioPortB, 2);
+//         // 2. Kéo lên HIGH (Pull 1 = TẮT TẤT CẢ LED)
+//         GPIO_PinOutSet(gpioPortA, 4);
+//         GPIO_PinOutSet(gpioPortB, 0);
+//         GPIO_PinOutSet(gpioPortB, 2);
 
-        vTaskDelay(pdMS_TO_TICKS(500));
-    }
-}
+//         vTaskDelay(pdMS_TO_TICKS(500));
+//     }
+// }
 
 // Task log trạng thái và các thông số vận hành FSM
 void FsmLoggerTask(void *pvParameters)
@@ -194,14 +194,14 @@ void app_init(void)
 {
     printf("========== APP INIT FSM RUN START ==========\r\n");
 
-    // 0. Tạo Task LED Blinky ĐẦU TIÊN để đảm bảo đèn luôn nhấp nháy ngay cả khi cảm biến bị lỗi
-    xTaskCreate(
-        LedBlinkyTask,
-        "LedBlinky",
-        128,
-        NULL,
-        tskIDLE_PRIORITY + 1,
-        NULL);
+    // // 0. Tạo Task LED Blinky ĐẦU TIÊN để đảm bảo đèn luôn nhấp nháy ngay cả khi cảm biến bị lỗi
+    // xTaskCreate(
+    //     LedBlinkyTask,
+    //     "LedBlinky",
+    //     128,
+    //     NULL,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
 
     // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
     if (!mySensorHub.initSensors(50))

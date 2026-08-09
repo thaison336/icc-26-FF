@@ -23,6 +23,8 @@ add_executable(xG26_Devkit
     ../somniguard_layer/somniguard_motion.cpp
     ../somniguard_layer/somniguard_buffer.cpp
     ../somniguard_layer/somniguard_fsm.cpp
+    ../other_driver/actuators_bsp.cpp
+    
  
 )
 
@@ -33,6 +35,7 @@ target_include_directories(xG26_Devkit PUBLIC
     ../other_driver
     ../sensor_hub
     ../somniguard_layer
+    
 )
 target_include_directories(slc PUBLIC
     ../imu_driver
@@ -40,6 +43,7 @@ target_include_directories(slc PUBLIC
     ../other_driver
     ../sensor_hub
     ../somniguard_layer
+
 )
 
 target_compile_definitions(xG26_Devkit PUBLIC
