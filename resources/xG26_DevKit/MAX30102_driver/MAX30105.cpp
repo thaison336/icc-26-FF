@@ -1,0 +1,1124 @@
+/***************************************************
+  This is a library written for the Maxim MAX30105 Optical Smoke Detector
+  It should also work with the MAX30102. However, the MAX30102 does not have a Green LED.
+
+  These sensors use I2C to communicate, as well as a single (optional)
+  interrupt line that is not currently supported in this driver.
+
+  Written by Peter Jansen and Nathan Seidle (SparkFun)
+  BSD license, all text above must be included in any redistribution.
+ *****************************************************/
+
+#include "MAX30105.h"
+#include "stdio.h"
+// Status Registers
+#define MAX30105_SPO2_CONFIG 0x0A
+static const uint8_t MAX30105_INTSTAT1 = 0x00;
+static const uint8_t MAX30105_INTSTAT2 = 0x01;
+static const uint8_t MAX30105_INTENABLE1 = 0x02;
+static const uint8_t MAX30105_INTENABLE2 = 0x03;
+
+// FIFO Registers
+static const uint8_t MAX30105_FIFOWRITEPTR = 0x04;
+static const uint8_t MAX30105_FIFOOVERFLOW = 0x05;
+static const uint8_t MAX30105_FIFOREADPTR = 0x06;
+static const uint8_t MAX30105_FIFODATA = 0x07;
+
+// Configuration Registers
+static const uint8_t MAX30105_FIFOCONFIG = 0x08;
+static const uint8_t MAX30105_MODECONFIG = 0x09;
+static const uint8_t MAX30105_PARTICLECONFIG = 0x0A; // Note, sometimes listed as "SPO2" config in datasheet (pg. 11)
+static const uint8_t MAX30105_LED1_PULSEAMP = 0x0D;
+static const uint8_t MAX30105_LED2_PULSEAMP = 0x0C;
+static const uint8_t MAX30105_LED3_PULSEAMP = 0x0E;
+static const uint8_t MAX30105_LED_PROX_AMP = 0x10;
+static const uint8_t MAX30105_MULTILEDCONFIG1 = 0x11;
+static const uint8_t MAX30105_MULTILEDCONFIG2 = 0x12;
+
+// Die Temperature Registers
+static const uint8_t MAX30105_DIETEMPINT = 0x1F;
+static const uint8_t MAX30105_DIETEMPFRAC = 0x20;
+static const uint8_t MAX30105_DIETEMPCONFIG = 0x21;
+
+// Proximity Function Registers
+static const uint8_t MAX30105_PROXINTTHRESH = 0x30;
+
+// Part ID Registers
+static const uint8_t MAX30105_REVISIONID = 0xFE;
+static const uint8_t MAX30105_PARTID = 0xFF; // Should always be 0x15. Identical to MAX30102.
+
+// MAX30105 Commands
+// Interrupt configuration (pg 13, 14)
+static const uint8_t MAX30105_INT_A_FULL_MASK = (uint8_t)~0b10000000;
+static const uint8_t MAX30105_INT_A_FULL_ENABLE = 0x80;
+static const uint8_t MAX30105_INT_A_FULL_DISABLE = 0x00;
+
+static const uint8_t MAX30105_INT_DATA_RDY_MASK = (uint8_t)~0b01000000;
+static const uint8_t MAX30105_INT_DATA_RDY_ENABLE = 0x40;
+static const uint8_t MAX30105_INT_DATA_RDY_DISABLE = 0x00;
+
+static const uint8_t MAX30105_INT_ALC_OVF_MASK = (uint8_t)~0b00100000;
+static const uint8_t MAX30105_INT_ALC_OVF_ENABLE = 0x20;
+static const uint8_t MAX30105_INT_ALC_OVF_DISABLE = 0x00;
+
+static const uint8_t MAX30105_INT_PROX_INT_MASK = (uint8_t)~0b00010000;
+static const uint8_t MAX30105_INT_PROX_INT_ENABLE = 0x10;
+static const uint8_t MAX30105_INT_PROX_INT_DISABLE = 0x00;
+
+static const uint8_t MAX30105_INT_DIE_TEMP_RDY_MASK = (uint8_t)~0b00000010;
+static const uint8_t MAX30105_INT_DIE_TEMP_RDY_ENABLE = 0x02;
+static const uint8_t MAX30105_INT_DIE_TEMP_RDY_DISABLE = 0x00;
+
+static const uint8_t MAX30105_SAMPLEAVG_MASK = (uint8_t)~0b11100000;
+static const uint8_t MAX30105_SAMPLEAVG_1 = 0x00;
+static const uint8_t MAX30105_SAMPLEAVG_2 = 0x20;
+static const uint8_t MAX30105_SAMPLEAVG_4 = 0x40;
+static const uint8_t MAX30105_SAMPLEAVG_8 = 0x60;
+static const uint8_t MAX30105_SAMPLEAVG_16 = 0x80;
+static const uint8_t MAX30105_SAMPLEAVG_32 = 0xA0;
+
+static const uint8_t MAX30105_ROLLOVER_MASK = 0xEF;
+static const uint8_t MAX30105_ROLLOVER_ENABLE = 0x10;
+static const uint8_t MAX30105_ROLLOVER_DISABLE = 0x00;
+
+static const uint8_t MAX30105_A_FULL_MASK = 0xF0;
+
+// Mode configuration commands (page 19)
+static const uint8_t MAX30105_SHUTDOWN_MASK = 0x7F;
+static const uint8_t MAX30105_SHUTDOWN = 0x80;
+static const uint8_t MAX30105_WAKEUP = 0x00;
+
+static const uint8_t MAX30105_RESET_MASK = 0xBF;
+static const uint8_t MAX30105_RESET = 0x40;
+
+static const uint8_t MAX30105_MODE_MASK = 0xF8;
+static const uint8_t MAX30105_MODE_REDONLY = 0x02;
+static const uint8_t MAX30105_MODE_REDIRONLY = 0x03;
+static const uint8_t MAX30105_MODE_MULTILED = 0x07;
+
+// Particle sensing configuration commands (pgs 19-20)
+static const uint8_t MAX30105_ADCRANGE_MASK = 0x9F;
+static const uint8_t MAX30105_ADCRANGE_2048 = 0x00;
+static const uint8_t MAX30105_ADCRANGE_4096 = 0x20;
+static const uint8_t MAX30105_ADCRANGE_8192 = 0x40;
+static const uint8_t MAX30105_ADCRANGE_16384 = 0x60;
+
+static const uint8_t MAX30105_SAMPLERATE_MASK = 0xE3;
+static const uint8_t MAX30105_SAMPLERATE_50 = 0x00;
+static const uint8_t MAX30105_SAMPLERATE_100 = 0x04;
+static const uint8_t MAX30105_SAMPLERATE_200 = 0x08;
+static const uint8_t MAX30105_SAMPLERATE_400 = 0x0C;
+static const uint8_t MAX30105_SAMPLERATE_800 = 0x10;
+static const uint8_t MAX30105_SAMPLERATE_1000 = 0x14;
+static const uint8_t MAX30105_SAMPLERATE_1600 = 0x18;
+static const uint8_t MAX30105_SAMPLERATE_3200 = 0x1C;
+
+static const uint8_t MAX30105_PULSEWIDTH_MASK = 0xFC;
+static const uint8_t MAX30105_PULSEWIDTH_69 = 0x00;
+static const uint8_t MAX30105_PULSEWIDTH_118 = 0x01;
+static const uint8_t MAX30105_PULSEWIDTH_215 = 0x02;
+static const uint8_t MAX30105_PULSEWIDTH_411 = 0x03;
+
+// Multi-LED Mode configuration (pg 22)
+static const uint8_t MAX30105_SLOT1_MASK = 0xF8;
+static const uint8_t MAX30105_SLOT2_MASK = 0x8F;
+static const uint8_t MAX30105_SLOT3_MASK = 0xF8;
+static const uint8_t MAX30105_SLOT4_MASK = 0x8F;
+
+static const uint8_t SLOT_NONE = 0x00;
+static const uint8_t SLOT_RED_LED = 0x01;
+static const uint8_t SLOT_IR_LED = 0x02;
+static const uint8_t SLOT_GREEN_LED = 0x03;
+static const uint8_t SLOT_NONE_PILOT = 0x04;
+static const uint8_t SLOT_RED_PILOT = 0x05;
+static const uint8_t SLOT_IR_PILOT = 0x06;
+static const uint8_t SLOT_GREEN_PILOT = 0x07;
+
+static const uint8_t MAX_30105_EXPECTEDPARTID = 0x15;
+
+MAX30105::MAX30105()
+{
+  // Constructor
+}
+
+bool MAX30105::begin(I2CBus *i2cBus, uint32_t i2cSpeed, uint8_t i2caddr)
+{
+  // printf("========== APP INIT START ==========\n");
+  _m_i2cBus = i2cBus;
+
+  _i2caddr = i2caddr;
+  if (m_bufferMutex == NULL)
+  {
+    m_bufferMutex = xSemaphoreCreateMutex();
+  }
+  //   printf("Bus     = %p\n", i2cBus);
+  // printf("Speed   = %lu\n", i2cSpeed);
+  // printf("Address = 0x%02X\n", i2caddr);
+
+  // Step 1: Initial Communication and Verification
+  // Check that a MAX30105 is connected
+  if (readPartID() != MAX_30105_EXPECTEDPARTID)
+  {
+    // Error -- Part ID read from MAX30105 does not match expected part ID.
+    // This may mean there is a physical connectivity problem (broken wire, unpowered, etc).
+    return false;
+  }
+
+  // Populate revision ID
+  readRevisionID();
+
+  return true;
+}
+
+//
+// Configuration
+//
+
+// Begin Interrupt configuration
+uint8_t MAX30105::getINT1(void)
+{
+  return (readRegister8(_i2caddr, MAX30105_INTSTAT1));
+}
+uint8_t MAX30105::getINT2(void)
+{
+  return (readRegister8(_i2caddr, MAX30105_INTSTAT2));
+}
+
+void MAX30105::enableAFULL(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_A_FULL_MASK, MAX30105_INT_A_FULL_ENABLE);
+}
+void MAX30105::disableAFULL(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_A_FULL_MASK, MAX30105_INT_A_FULL_DISABLE);
+}
+
+void MAX30105::enableDATARDY(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_DATA_RDY_MASK, MAX30105_INT_DATA_RDY_ENABLE);
+}
+void MAX30105::disableDATARDY(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_DATA_RDY_MASK, MAX30105_INT_DATA_RDY_DISABLE);
+}
+
+void MAX30105::enableALCOVF(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_ALC_OVF_MASK, MAX30105_INT_ALC_OVF_ENABLE);
+}
+void MAX30105::disableALCOVF(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_ALC_OVF_MASK, MAX30105_INT_ALC_OVF_DISABLE);
+}
+
+void MAX30105::enablePROXINT(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_PROX_INT_MASK, MAX30105_INT_PROX_INT_ENABLE);
+}
+void MAX30105::disablePROXINT(void)
+{
+  bitMask(MAX30105_INTENABLE1, MAX30105_INT_PROX_INT_MASK, MAX30105_INT_PROX_INT_DISABLE);
+}
+
+void MAX30105::enableDIETEMPRDY(void)
+{
+  bitMask(MAX30105_INTENABLE2, MAX30105_INT_DIE_TEMP_RDY_MASK, MAX30105_INT_DIE_TEMP_RDY_ENABLE);
+}
+void MAX30105::disableDIETEMPRDY(void)
+{
+  bitMask(MAX30105_INTENABLE2, MAX30105_INT_DIE_TEMP_RDY_MASK, MAX30105_INT_DIE_TEMP_RDY_DISABLE);
+}
+
+// End Interrupt configuration
+
+void MAX30105::softReset(void)
+{
+  bitMask(MAX30105_MODECONFIG, MAX30105_RESET_MASK, MAX30105_RESET);
+
+  // Poll for bit to clear, reset is then complete
+  // Timeout after 100ms
+  unsigned long startTime = (xTaskGetTickCount() * portTICK_PERIOD_MS);
+  while ((xTaskGetTickCount() * portTICK_PERIOD_MS) - startTime < 100)
+  {
+    uint8_t response = readRegister8(_i2caddr, MAX30105_MODECONFIG);
+    if ((response & MAX30105_RESET) == 0)
+      break;                      // We're done!
+    vTaskDelay(pdMS_TO_TICKS(1)); // Let's not over burden the I2C bus
+  }
+}
+
+void MAX30105::shutDown(void)
+{
+  // Put IC into low power mode (datasheet pg. 19)
+  // During shutdown the IC will continue to respond to I2C commands but will
+  // not update with or take new readings (such as temperature)
+  bitMask(MAX30105_MODECONFIG, MAX30105_SHUTDOWN_MASK, MAX30105_SHUTDOWN);
+}
+
+void MAX30105::wakeUp(void)
+{
+  // Pull IC out of low power mode (datasheet pg. 19)
+  bitMask(MAX30105_MODECONFIG, MAX30105_SHUTDOWN_MASK, MAX30105_WAKEUP);
+}
+
+void MAX30105::setLEDMode(uint8_t mode)
+{
+  // Set which LEDs are used for sampling -- Red only, RED+IR only, or custom.
+  // See datasheet, page 19
+  bitMask(MAX30105_MODECONFIG, MAX30105_MODE_MASK, mode);
+}
+
+void MAX30105::setADCRange(uint8_t adcRange)
+{
+  // adcRange: one of MAX30105_ADCRANGE_2048, _4096, _8192, _16384
+  bitMask(MAX30105_PARTICLECONFIG, MAX30105_ADCRANGE_MASK, adcRange);
+}
+
+void MAX30105::setSampleRate(uint8_t sampleRate)
+{
+  // sampleRate: one of MAX30105_SAMPLERATE_50, _100, _200, _400, _800, _1000, _1600, _3200
+  // printf("set samplerate: %d\n", sampleRate);
+  bitMask(MAX30105_PARTICLECONFIG, MAX30105_SAMPLERATE_MASK, sampleRate);
+}
+
+void MAX30105::setPulseWidth(uint8_t pulseWidth)
+{
+  // pulseWidth: one of MAX30105_PULSEWIDTH_69, _188, _215, _411
+  bitMask(MAX30105_PARTICLECONFIG, MAX30105_PULSEWIDTH_MASK, pulseWidth);
+}
+
+// NOTE: Amplitude values: 0x00 = 0mA, 0x7F = 25.4mA, 0xFF = 50mA (typical)
+// See datasheet, page 21
+void MAX30105::setPulseAmplitudeRed(uint8_t amplitude)
+{
+  writeRegister8(_i2caddr, MAX30105_LED1_PULSEAMP, amplitude);
+}
+
+void MAX30105::setPulseAmplitudeIR(uint8_t amplitude)
+{
+  writeRegister8(_i2caddr, MAX30105_LED2_PULSEAMP, amplitude);
+}
+
+void MAX30105::setPulseAmplitudeGreen(uint8_t amplitude)
+{
+  writeRegister8(_i2caddr, MAX30105_LED3_PULSEAMP, amplitude);
+}
+
+void MAX30105::setPulseAmplitudeProximity(uint8_t amplitude)
+{
+  writeRegister8(_i2caddr, MAX30105_LED_PROX_AMP, amplitude);
+}
+
+void MAX30105::setProximityThreshold(uint8_t threshMSB)
+{
+  // Set the IR ADC count that will trigger the beginning of particle-sensing mode.
+  // The threshMSB signifies only the 8 most significant-bits of the ADC count.
+  // See datasheet, page 24.
+  writeRegister8(_i2caddr, MAX30105_PROXINTTHRESH, threshMSB);
+}
+
+// Given a slot number assign a thing to it
+// Devices are SLOT_RED_LED or SLOT_RED_PILOT (proximity)
+// Assigning a SLOT_RED_LED will pulse LED
+// Assigning a SLOT_RED_PILOT will ??
+void MAX30105::enableSlot(uint8_t slotNumber, uint8_t device)
+{
+
+  uint8_t originalContents;
+
+  switch (slotNumber)
+  {
+  case (1):
+    bitMask(MAX30105_MULTILEDCONFIG1, MAX30105_SLOT1_MASK, device);
+    break;
+  case (2):
+    bitMask(MAX30105_MULTILEDCONFIG1, MAX30105_SLOT2_MASK, device << 4);
+    break;
+  case (3):
+    bitMask(MAX30105_MULTILEDCONFIG2, MAX30105_SLOT3_MASK, device);
+    break;
+  case (4):
+    bitMask(MAX30105_MULTILEDCONFIG2, MAX30105_SLOT4_MASK, device << 4);
+    break;
+  default:
+    // Shouldn't be here!
+    break;
+  }
+}
+
+// Clears all slot assignments
+void MAX30105::disableSlots(void)
+{
+  writeRegister8(_i2caddr, MAX30105_MULTILEDCONFIG1, 0);
+  writeRegister8(_i2caddr, MAX30105_MULTILEDCONFIG2, 0);
+}
+
+//
+// FIFO Configuration
+//
+
+// Set sample average (Table 3, Page 18)
+void MAX30105::setFIFOAverage(uint8_t numberOfSamples)
+{
+  bitMask(MAX30105_FIFOCONFIG, MAX30105_SAMPLEAVG_MASK, numberOfSamples);
+}
+
+// Resets all points to start in a known state
+// Page 15 recommends clearing FIFO before beginning a read
+void MAX30105::clearFIFO(void)
+{
+  writeRegister8(_i2caddr, MAX30105_FIFOWRITEPTR, 0);
+  writeRegister8(_i2caddr, MAX30105_FIFOOVERFLOW, 0);
+  writeRegister8(_i2caddr, MAX30105_FIFOREADPTR, 0);
+  clearDataBuffer();
+  getINT1(); // Clear pending A_FULL interrupt latch: đưa INT pin về HIGH để falling edge tiếp theo được nhận đúng
+  getINT2();
+}
+
+// Enable roll over if FIFO over flows
+void MAX30105::enableFIFORollover(void)
+{
+  bitMask(MAX30105_FIFOCONFIG, MAX30105_ROLLOVER_MASK, MAX30105_ROLLOVER_ENABLE);
+}
+
+// Disable roll over if FIFO over flows
+void MAX30105::disableFIFORollover(void)
+{
+  bitMask(MAX30105_FIFOCONFIG, MAX30105_ROLLOVER_MASK, MAX30105_ROLLOVER_DISABLE);
+}
+
+// Set number of samples to trigger the almost full interrupt (Page 18)
+// Power on default is 32 samples
+// Note it is reverse: 0x00 is 32 samples, 0x0F is 17 samples
+void MAX30105::setFIFOAlmostFull(uint8_t numberOfSamples)
+{
+  bitMask(MAX30105_FIFOCONFIG, MAX30105_A_FULL_MASK, numberOfSamples);
+}
+
+// Read the FIFO Write Pointer
+uint8_t MAX30105::getWritePointer(void)
+{
+  return (readRegister8(_i2caddr, MAX30105_FIFOWRITEPTR));
+}
+
+// Read the FIFO Read Pointer
+uint8_t MAX30105::getReadPointer(void)
+{
+  return (readRegister8(_i2caddr, MAX30105_FIFOREADPTR));
+}
+
+// Die Temperature
+// Returns temp in C
+float MAX30105::readTemperature()
+{
+
+  // DIE_TEMP_RDY interrupt must be enabled
+  // See issue 19: https://github.com/sparkfun/SparkFun_MAX3010x_Sensor_Library/issues/19
+
+  // Step 1: Config die temperature register to take 1 temperature sample
+  writeRegister8(_i2caddr, MAX30105_DIETEMPCONFIG, 0x01);
+
+  // Poll for bit to clear, reading is then complete
+  // Timeout after 100ms
+  unsigned long startTime = (xTaskGetTickCount() * portTICK_PERIOD_MS);
+  while ((xTaskGetTickCount() * portTICK_PERIOD_MS) - startTime < 100)
+  {
+    // uint8_t response = readRegister8(_i2caddr, MAX30105_DIETEMPCONFIG); //Original way
+    // if ((response & 0x01) == 0) break; //We're done!
+
+    // Check to see if DIE_TEMP_RDY interrupt is set
+    uint8_t response = readRegister8(_i2caddr, MAX30105_INTSTAT2);
+    if ((response & MAX30105_INT_DIE_TEMP_RDY_ENABLE) > 0)
+      break;                      // We're done!
+    vTaskDelay(pdMS_TO_TICKS(1)); // Let's not over burden the I2C bus
+  }
+  // TODO How do we want to fail? With what type of error?
+  //? if((xTaskGetTickCount() * portTICK_PERIOD_MS) - startTime >= 100) return(-999.0);
+
+  // Step 2: Read die temperature register (integer)
+  int8_t tempInt = readRegister8(_i2caddr, MAX30105_DIETEMPINT);
+  uint8_t tempFrac = readRegister8(_i2caddr, MAX30105_DIETEMPFRAC); // Causes the clearing of the DIE_TEMP_RDY interrupt
+
+  // Step 3: Calculate temperature (datasheet pg. 23)
+  return (float)tempInt + ((float)tempFrac * 0.0625);
+}
+
+// Returns die temp in F
+float MAX30105::readTemperatureF()
+{
+  float temp = readTemperature();
+
+  if (temp != -999.0)
+    temp = temp * 1.8 + 32.0;
+
+  return (temp);
+}
+
+// Set the PROX_INT_THRESHold
+void MAX30105::setPROXINTTHRESH(uint8_t val)
+{
+  writeRegister8(_i2caddr, MAX30105_PROXINTTHRESH, val);
+}
+
+//
+// Device ID and Revision
+//
+uint8_t MAX30105::readPartID()
+{
+  return readRegister8(_i2caddr, MAX30105_PARTID);
+}
+
+void MAX30105::readRevisionID()
+{
+  revisionID = readRegister8(_i2caddr, MAX30105_REVISIONID);
+}
+
+uint8_t MAX30105::getRevisionID()
+{
+  return revisionID;
+}
+
+// Setup the sensor
+// The MAX30105 has many settings. By default we select:
+//  Sample Average = 4
+//  Mode = MultiLED
+//  ADC Range = 16384 (62.5pA per LSB)
+//  Sample rate = 50
+// Use the default setup if you are just getting started with the MAX30105 sensor
+void MAX30105::setup(uint8_t powerLevel, uint8_t sampleAverage, uint8_t ledMode, int sampleRate, int pulseWidth, int adcRange)
+{
+  softReset(); // Reset all configuration, threshold, and data registers to POR values
+
+  // FIFO Configuration
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  // The chip will average multiple samples of same type together if you wish
+  if (sampleAverage == 1)
+    setFIFOAverage(MAX30105_SAMPLEAVG_1); // No averaging per FIFO record
+  else if (sampleAverage == 2)
+    setFIFOAverage(MAX30105_SAMPLEAVG_2);
+  else if (sampleAverage == 4)
+    setFIFOAverage(MAX30105_SAMPLEAVG_4);
+  else if (sampleAverage == 8)
+    setFIFOAverage(MAX30105_SAMPLEAVG_8);
+  else if (sampleAverage == 16)
+    setFIFOAverage(MAX30105_SAMPLEAVG_16);
+  else if (sampleAverage == 32)
+    setFIFOAverage(MAX30105_SAMPLEAVG_32);
+  else
+    setFIFOAverage(MAX30105_SAMPLEAVG_4);
+
+  // setFIFOAlmostFull(2); //Set to 30 samples to trigger an 'Almost Full' interrupt
+  // enableFIFORollover(); //Allow FIFO to wrap/roll over
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  if (sampleRate < 100)
+    setSampleRate(MAX30105_SAMPLERATE_50); // Take 50 samples per second
+  else if (sampleRate < 200)
+    setSampleRate(MAX30105_SAMPLERATE_100);
+  else if (sampleRate < 400)
+    setSampleRate(MAX30105_SAMPLERATE_200);
+  else if (sampleRate < 800)
+    setSampleRate(MAX30105_SAMPLERATE_400);
+  else if (sampleRate < 1000)
+    setSampleRate(MAX30105_SAMPLERATE_800);
+  else if (sampleRate < 1600)
+    setSampleRate(MAX30105_SAMPLERATE_1000);
+  else if (sampleRate < 3200)
+    setSampleRate(MAX30105_SAMPLERATE_1600);
+  else if (sampleRate == 3200)
+    setSampleRate(MAX30105_SAMPLERATE_3200);
+  else
+    setSampleRate(MAX30105_SAMPLERATE_50);
+  // Mode Configuration
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  if (ledMode == 3)
+    setLEDMode(MAX30105_MODE_MULTILED); // Watch all three LED channels
+  else if (ledMode == 2)
+    setLEDMode(MAX30105_MODE_REDIRONLY); // Red and IR
+  else
+    setLEDMode(MAX30105_MODE_REDONLY); // Red only
+  activeLEDs = ledMode;                // Used to control how many uint8_ts to read from FIFO buffer
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+  // Particle Sensing Configuration
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  if (adcRange < 4096)
+    setADCRange(MAX30105_ADCRANGE_2048); // 7.81pA per LSB
+  else if (adcRange < 8192)
+    setADCRange(MAX30105_ADCRANGE_4096); // 15.63pA per LSB
+  else if (adcRange < 16384)
+    setADCRange(MAX30105_ADCRANGE_8192); // 31.25pA per LSB
+  else if (adcRange == 16384)
+    setADCRange(MAX30105_ADCRANGE_16384); // 62.5pA per LSB
+  else
+    setADCRange(MAX30105_ADCRANGE_2048);
+
+  // The longer the pulse width the longer range of detection you'll have
+  // At 69us and 0.4mA it's about 2 inches
+  // At 411us and 0.4mA it's about 6 inches
+  if (pulseWidth < 118)
+    setPulseWidth(MAX30105_PULSEWIDTH_69); // Page 26, Gets us 15 bit resolution
+  else if (pulseWidth < 215)
+    setPulseWidth(MAX30105_PULSEWIDTH_118); // 16 bit resolution
+  else if (pulseWidth < 411)
+    setPulseWidth(MAX30105_PULSEWIDTH_215); // 17 bit resolution
+  else if (pulseWidth == 411)
+    setPulseWidth(MAX30105_PULSEWIDTH_411); // 18 bit resolution
+  else
+    setPulseWidth(MAX30105_PULSEWIDTH_69);
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+  // LED Pulse Amplitude Configuration
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  // Default is 0x1F which gets us 6.4mA
+  // powerLevel = 0x02, 0.4mA - Presence detection of ~4 inch
+  // powerLevel = 0x1F, 6.4mA - Presence detection of ~8 inch
+  // powerLevel = 0x7F, 25.4mA - Presence detection of ~8 inch
+  // powerLevel = 0xFF, 50.0mA - Presence detection of ~12 inch
+
+  setPulseAmplitudeRed(powerLevel);
+  setPulseAmplitudeIR(powerLevel);
+  setPulseAmplitudeGreen(powerLevel);
+  setPulseAmplitudeProximity(powerLevel);
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+  // Multi-LED Mode Configuration, Enable the reading of the three LEDs
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  enableSlot(1, SLOT_RED_LED);
+  if (ledMode > 1)
+    enableSlot(2, SLOT_IR_LED);
+  if (ledMode > 2)
+    enableSlot(3, SLOT_GREEN_LED);
+  // enableSlot(1, SLOT_RED_PILOT);
+  // enableSlot(2, SLOT_IR_PILOT);
+  // enableSlot(3, SLOT_GREEN_PILOT);
+  //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+  clearFIFO(); // Reset the FIFO before we begin checking the sensor
+  if (sampleRate < 100)
+    setSampleRate(MAX30105_SAMPLERATE_50); // Take 50 samples per second
+  else if (sampleRate < 200)
+    setSampleRate(MAX30105_SAMPLERATE_100);
+  else if (sampleRate < 400)
+    setSampleRate(MAX30105_SAMPLERATE_200);
+  else if (sampleRate < 800)
+    setSampleRate(MAX30105_SAMPLERATE_400);
+  else if (sampleRate < 1000)
+    setSampleRate(MAX30105_SAMPLERATE_800);
+  else if (sampleRate < 1600)
+    setSampleRate(MAX30105_SAMPLERATE_1000);
+  else if (sampleRate < 3200)
+    setSampleRate(MAX30105_SAMPLERATE_1600);
+  else if (sampleRate == 3200)
+    setSampleRate(MAX30105_SAMPLERATE_3200);
+  else
+    setSampleRate(MAX30105_SAMPLERATE_50);
+  // printf("MODE=%02X\n",
+  //        readRegister8(_i2caddr, MAX30105_MODECONFIG));
+
+  // printf("SPO2=%02X\n",
+  //        readRegister8(_i2caddr, MAX30105_SPO2_CONFIG));
+
+  // printf("FIFO_CFG=%02X\n",
+  //        readRegister8(_i2caddr, MAX30105_FIFOCONFIG));
+  //   uint8_t ctrl1 = readRegister8(_i2caddr, MAX30105_MULTILEDCONFIG1);
+  // uint8_t ctrl2 = readRegister8(_i2caddr, MAX30105_MULTILEDCONFIG2);
+
+  //        readRegister8(_i2caddr, 0x0C);
+
+  //        readRegister8(_i2caddr, 0x0D);
+}
+
+//
+// Data Collection
+//
+
+// Tell caller how many samples are available
+uint8_t MAX30105::available(void)
+{
+  int8_t numberOfSamples = 0;
+
+  if (xSemaphoreTake(m_bufferMutex, portMAX_DELAY) == pdTRUE)
+  {
+    numberOfSamples = sense.head - sense.tail;
+    if (numberOfSamples < 0)
+      numberOfSamples += STORAGE_SIZE;
+    xSemaphoreGive(m_bufferMutex);
+  }
+
+  return (numberOfSamples);
+}
+// Report the most recent red value
+uint32_t MAX30105::getRed(void)
+{
+  // //Check the sensor for new data for 250ms
+  // if(safeCheck(250))
+  //   return (sense.red[sense.head]);
+  // else
+  //   return(0); //Sensor failed to find new data
+  return (sense.IR[sense.head]);
+}
+
+// Report the most recent IR value
+uint32_t MAX30105::getIR(void)
+{
+  // //Check the sensor for new data for 250ms
+  // if(safeCheck(250))
+  //   return (sense.IR[sense.head]);
+  // else
+  //   return(0); //Sensor failed to find new data
+  return (sense.red[sense.head]);
+}
+
+// Report the most recent Green value
+uint32_t MAX30105::getGreen(void)
+{
+  // Check the sensor for new data for 250ms
+  if (safeCheck(250))
+    return (sense.green[sense.head]);
+  else
+    return (0); // Sensor failed to find new data
+}
+
+// Report the next Red value in the FIFO
+uint32_t MAX30105::getFIFORed(void)
+{
+  uint32_t val = 0;
+  if (xSemaphoreTake(m_bufferMutex, portMAX_DELAY) == pdTRUE)
+  {
+    val = sense.IR[sense.tail];
+    xSemaphoreGive(m_bufferMutex);
+  }
+  return val;
+}
+
+// Report the next IR value in the FIFO
+uint32_t MAX30105::getFIFOIR(void)
+{
+  uint32_t val = 0;
+  if (xSemaphoreTake(m_bufferMutex, portMAX_DELAY) == pdTRUE)
+  {
+    val = sense.red[sense.tail];
+    xSemaphoreGive(m_bufferMutex);
+  }
+  return val;
+}
+// Report the next Green value in the FIFO
+uint32_t MAX30105::getFIFOGreen(void)
+{
+  return (sense.green[sense.tail]);
+}
+
+// Advance the tail
+bool MAX30105::nextSample(void)
+{
+  bool hasAdvanced = false;
+
+  // Khóa Mutex một lần duy nhất bao trọn cả logic kiểm tra và cập nhật
+  if (xSemaphoreTake(m_bufferMutex, portMAX_DELAY) == pdTRUE)
+  {
+    // Kiểm tra trực tiếp xem có dữ liệu mới không (head khác tail nghĩa là có dữ liệu)
+    if (sense.head != sense.tail)
+    {
+      sense.tail++;
+      sense.tail %= STORAGE_SIZE; // Wrap condition
+      hasAdvanced = true;         // Đánh dấu là đã tăng tail thành công
+    }
+
+    // Nhả Mutex sau khi hoàn tất mọi thao tác
+    xSemaphoreGive(m_bufferMutex);
+  }
+
+  return hasAdvanced;
+}
+
+// Polls the sensor for new data
+// Call regularly
+// If new data is available, it updates the head and tail in the main struct
+// Returns number of new samples obtained
+
+// uint16_t MAX30105::check(void)
+// {
+// uint8_t readPointer = getReadPointer();
+//   uint8_t writePointer = getWritePointer();
+//   int numberOfSamples = 0;
+
+//   if (readPointer != writePointer)
+//   {
+//     numberOfSamples = writePointer - readPointer;
+//     if (numberOfSamples < 0) numberOfSamples += 32;
+
+//     int bytesLeftToRead = numberOfSamples * activeLEDs * 3;
+//     uint8_t rx_buffer[288]; // FIFO tối đa chứa 32 mẫu * 3 LED * 3 bytes = 288 bytes
+
+//     // Đọc trọn gói khối dữ liệu từ FIFO bằng I2C Non-blocking
+//     I2C_TransferSeq_TypeDef seq;
+//     I2C_TransferReturn_TypeDef status;
+//     uint8_t reg = MAX30105_FIFODATA;
+
+//     seq.addr = (_i2caddr << 1);
+//     seq.flags = I2C_FLAG_WRITE_READ;
+//     seq.buf[0].data = &reg;
+//     seq.buf[0].len = 1;
+//     seq.buf[1].data = rx_buffer;
+//     seq.buf[1].len = bytesLeftToRead;
+
+//     status = I2C_TransferInit(sl_i2cspm_sensor, &seq);
+//     while (status == i2cTransferInProgress) {
+//         vTaskDelay(pdMS_TO_TICKS(1));
+//         status = I2C_Transfer(sl_i2cspm_sensor);
+//     }
+
+//     if (status != i2cTransferDone) return 0; // Lỗi I2C
+
+//     // Parse mảng dữ liệu vừa nhận được vào struct
+//     int bufferIndex = 0;
+//     for (int i = 0; i < numberOfSamples; i++)
+//     {
+//       sense.head++;
+//       sense.head %= STORAGE_SIZE;
+//       uint32_t tempLong;
+
+//       // RED
+//       tempLong = ((uint32_t)rx_buffer[bufferIndex] << 16) |
+//                  ((uint32_t)rx_buffer[bufferIndex+1] << 8) |
+//                  rx_buffer[bufferIndex+2];
+//       tempLong &= 0x3FFFF;
+//       sense.red[sense.head] = tempLong;
+//       bufferIndex += 3;
+
+//       if (activeLEDs > 1) { // IR
+//         tempLong = ((uint32_t)rx_buffer[bufferIndex] << 16) |
+//                    ((uint32_t)rx_buffer[bufferIndex+1] << 8) |
+//                    rx_buffer[bufferIndex+2];
+//         tempLong &= 0x3FFFF;
+//         sense.IR[sense.head] = tempLong;
+//         bufferIndex += 3;
+//       }
+
+//       if (activeLEDs > 2) { // GREEN
+//         tempLong = ((uint32_t)rx_buffer[bufferIndex] << 16) |
+//                    ((uint32_t)rx_buffer[bufferIndex+1] << 8) |
+//                    rx_buffer[bufferIndex+2];
+//         tempLong &= 0x3FFFF;
+//         sense.green[sense.head] = tempLong;
+//         bufferIndex += 3;
+//       }
+//     }
+//   }
+//   return (numberOfSamples);
+// }
+
+uint16_t MAX30105::check(void)
+{
+  // printf("========== CHECK FIFO ==========\n");
+  uint8_t readPointer = getReadPointer();
+  uint8_t writePointer = getWritePointer();
+  // printf("RP=%u WP=%u Diff=%d\n",
+  //      readPointer,
+  //      writePointer,
+  //      (writePointer - readPointer + 32) % 32);
+  if (readPointer == writePointer)
+    return 0;
+
+  uint8_t numberOfSamples = writePointer - readPointer;
+  if (writePointer < readPointer)
+    numberOfSamples += 32;
+
+  uint16_t bytesToRead = numberOfSamples * activeLEDs * 3;
+
+  // Đọc toàn bộ FIFO chỉ với một transaction I2C
+  if (!_m_i2cBus->read(_i2caddr,
+                       MAX30105_FIFODATA,
+                       fifoBuffer,
+                       bytesToRead))
+  {
+    return 0;
+  }
+
+  uint16_t bufferIndex = 0;
+  if (xSemaphoreTake(m_bufferMutex, pdMS_TO_TICKS(10)) == pdTRUE)
+  {
+    for (uint8_t sample = 0; sample < numberOfSamples; sample++)
+    {
+      // sense.head++;
+      // sense.head %= STORAGE_SIZE;
+      sense.head = (sense.head + 1) % STORAGE_SIZE;
+
+      if (sense.head == sense.tail)
+      {
+        // Buffer đầy, bỏ mẫu cũ nhất
+        sense.tail = (sense.tail + 1) % STORAGE_SIZE;
+      }
+
+      uint32_t tempLong;
+
+      // RED
+      tempLong =
+          ((uint32_t)fifoBuffer[bufferIndex] << 16) |
+          ((uint32_t)fifoBuffer[bufferIndex + 1] << 8) |
+          fifoBuffer[bufferIndex + 2];
+
+      sense.red[sense.head] = tempLong & 0x3FFFF;
+      bufferIndex += 3;
+
+      // IR
+      if (activeLEDs > 1)
+      {
+        tempLong =
+            ((uint32_t)fifoBuffer[bufferIndex] << 16) |
+            ((uint32_t)fifoBuffer[bufferIndex + 1] << 8) |
+            fifoBuffer[bufferIndex + 2];
+
+        sense.IR[sense.head] = tempLong & 0x3FFFF;
+        bufferIndex += 3;
+      }
+
+      // GREEN
+      if (activeLEDs > 2)
+      {
+        tempLong =
+            ((uint32_t)fifoBuffer[bufferIndex] << 16) |
+            ((uint32_t)fifoBuffer[bufferIndex + 1] << 8) |
+            fifoBuffer[bufferIndex + 2];
+
+        sense.green[sense.head] = tempLong & 0x3FFFF;
+        bufferIndex += 3;
+      }
+    }
+    xSemaphoreGive(m_bufferMutex);
+  }
+  return numberOfSamples;
+}
+
+// Check for new data but give up after a certain amount of time
+// Returns true if new data was found
+// Returns false if new data was not found
+bool MAX30105::safeCheck(uint8_t maxTimeToCheck)
+{
+  uint32_t markTime = (xTaskGetTickCount() * portTICK_PERIOD_MS);
+
+  while (1)
+  {
+    if ((xTaskGetTickCount() * portTICK_PERIOD_MS) - markTime > maxTimeToCheck)
+      return (false);
+
+    if (check() == true) // We found new data!
+      return (true);
+
+    vTaskDelay(pdMS_TO_TICKS(1));
+  }
+}
+
+// Given a register, read it, mask it, and then set the thing
+bool MAX30105::bitMask(uint8_t reg,
+                       uint8_t mask,
+                       uint8_t thing)
+{
+  uint8_t original;
+
+  if (!_m_i2cBus->readRegister8(_i2caddr, reg, original))
+    return false;
+
+  original &= mask;
+
+  return _m_i2cBus->writeRegister8(_i2caddr,
+                                   reg,
+                                   original | thing);
+}
+//
+// Low-level I2C Communication
+//
+// uint8_t MAX30105::readRegister8(uint8_t address, uint8_t reg) {
+//   I2C_TransferSeq_TypeDef seq;
+//   I2C_TransferReturn_TypeDef status;
+//   uint8_t rx_buf[1];
+
+//   seq.addr = (address << 1); // em_i2c yêu cầu địa chỉ 8-bit
+//   seq.flags = I2C_FLAG_WRITE_READ;
+//   seq.buf[0].data = &reg;
+//   seq.buf[0].len = 1;
+//   seq.buf[1].data = rx_buf;
+//   seq.buf[1].len = 1;
+
+// status = I2C_TransferInit(sl_i2cspm_sensor, &seq);
+
+//   uint8_t timeout = 100; // Chờ tối đa 10 mili-giây
+//   while (status == i2cTransferInProgress) {
+//       vTaskDelay(pdMS_TO_TICKS(1));
+//       status = I2C_Transfer(sl_i2cspm_sensor);
+//       timeout--;
+//   }
+
+//   if (status == i2cTransferDone) return rx_buf[0];
+
+//   // Nếu hết 10ms mà không done, trả về 0 để tránh treo chip
+//   printf("[MAX30102] Reading time out/n");
+//   return 0;
+
+// }
+
+// void MAX30105::writeRegister8(uint8_t address, uint8_t reg, uint8_t value) {
+// I2C_TransferSeq_TypeDef seq;
+//   I2C_TransferReturn_TypeDef status;
+//   uint8_t tx_buf[2] = { reg, value };
+
+//   seq.addr = (address << 1);
+//   seq.flags = I2C_FLAG_WRITE;
+//   seq.buf[0].data = tx_buf;
+//   seq.buf[0].len = 2;
+
+// status = I2C_TransferInit(sl_i2cspm_sensor, &seq);
+
+//   uint8_t timeout = 10; // Chờ tối đa 10 mili-giây
+//   while (status == i2cTransferInProgress && timeout > 0) {
+//       vTaskDelay(pdMS_TO_TICKS(1));
+//       status = I2C_Transfer(sl_i2cspm_sensor);
+//       timeout--;
+//   }
+// }
+
+uint8_t MAX30105::readRegister8(uint8_t address, uint8_t reg)
+{
+  // printf("[MAX30102] Reading register 0x%02X from address 0x%02X\n", reg, address);
+  uint8_t value = 0;
+  if (_m_i2cBus->read(address, reg, &value, 1))
+  {
+    return value;
+  }
+  else
+  {
+    printf("[MAX30102] error reading register\n");
+    return 0; // Return 0 on error
+  }
+}
+void MAX30105::writeRegister8(uint8_t address, uint8_t reg, uint8_t value)
+{
+  // printf("[MAX30102] Writing register 0x%02X to address 0x%02X\n", reg, address);
+  if (!_m_i2cBus->writeRegister8(address, reg, value))
+  {
+    printf("[MAX30102] error writing register\n");
+  }
+}
+void MAX30105::Max30102_setSampleRate(uint16_t sampleRate)
+{
+  // sampleRate: one of MAX30105_SAMPLERATE_50, _100, _200, _400, _800, _1000, _1600, _3200
+  if (sampleRate < 100)
+    setSampleRate(MAX30105_SAMPLERATE_50); // Take 50 samples per second
+  else if (sampleRate < 200)
+    setSampleRate(MAX30105_SAMPLERATE_100);
+  else if (sampleRate < 400)
+    setSampleRate(MAX30105_SAMPLERATE_200);
+  else if (sampleRate < 800)
+    setSampleRate(MAX30105_SAMPLERATE_400);
+  else if (sampleRate < 1000)
+    setSampleRate(MAX30105_SAMPLERATE_800);
+  else if (sampleRate < 1600)
+    setSampleRate(MAX30105_SAMPLERATE_1000);
+  else if (sampleRate < 3200)
+    setSampleRate(MAX30105_SAMPLERATE_1600);
+  else if (sampleRate == 3200)
+    setSampleRate(MAX30105_SAMPLERATE_3200);
+  else
+    setSampleRate(MAX30105_SAMPLERATE_50);
+}
+void MAX30105::clearDataBuffer()
+{
+  if (xSemaphoreTake(m_bufferMutex, portMAX_DELAY) == pdTRUE)
+  {
+    sense.head = 0;
+    sense.tail = 0;
+    xSemaphoreGive(m_bufferMutex);
+  }
+}
+
+uint32_t MAX30105::getADCrange()
+{
+  uint8_t cfg = readRegister8(_i2caddr, MAX30105_SPO2_CONFIG);
+  uint8_t pulseWidth = cfg & 0x03;
+  if (pulseWidth == 0b01)
+    return 65535;
+  else if (pulseWidth == 0b10)
+    return 131071;
+  else if (pulseWidth == 0b11)
+    return 262143;
+  else
+    return 32767;
+}
+void MAX30105::debugDumpConfig()
+{
+  printf("MODE      = %02X\n", readRegister8(_i2caddr, 0x09));
+  printf("FIFO_CFG  = %02X\n", readRegister8(_i2caddr, 0x08));
+  printf("SPO2_CFG  = %02X\n", readRegister8(_i2caddr, 0x0A));
+  printf("LED1_PA   = %02X\n", readRegister8(_i2caddr, 0x0C));
+  printf("LED2_PA   = %02X\n", readRegister8(_i2caddr, 0x0D));
+  printf("MULTI_LED = %02X\n", readRegister8(_i2caddr, 0x11));
+  uint8_t cfg = readRegister8(_i2caddr, MAX30105_SPO2_CONFIG);
+
+  printf("\n========== MAX30102 CONFIG ==========\r\n");
+  printf("SPO2_CONFIG = 0x%02X\r\n", cfg);
+
+  uint8_t adcRange = (cfg >> 5) & 0x03;
+  uint8_t sampleRate = (cfg >> 2) & 0x07;
+  uint8_t pulseWidth = cfg & 0x03;
+
+  printf("ADC Range   = %u\r\n", adcRange);
+  printf("Sample Rate Code = %u\r\n", sampleRate);
+  printf("Pulse Width = %u\r\n", pulseWidth);
+
+  switch (sampleRate)
+  {
+  case 0:
+    printf("==> 50 SPS\r\n");
+    break;
+  case 1:
+    printf("==> 100 SPS\r\n");
+    break;
+  case 2:
+    printf("==> 200 SPS\r\n");
+    break;
+  case 3:
+    printf("==> 400 SPS\r\n");
+    break;
+  case 4:
+    printf("==> 800 SPS\r\n");
+    break;
+  case 5:
+    printf("==> 1000 SPS\r\n");
+    break;
+  case 6:
+    printf("==> 1600 SPS\r\n");
+    break;
+  case 7:
+    printf("==> 3200 SPS\r\n");
+    break;
+  }
+  uint8_t id;
+  id = readRegister8(0x57, 0xFF);
+
+  printf("PART_ID = %02X\n", id);
+  printf("=====================================\r\n");
+}
+
+uint8_t MAX30105::getOverflowCounter(void)
+{
+  return readRegister8(_i2caddr, MAX30105_FIFOOVERFLOW);
+}
+void MAX30105::dumpFIFO()
+{
+  printf("WR=%d RD=%d OV=%d\n",
+         readRegister8(_i2caddr, MAX30105_FIFOWRITEPTR),
+         readRegister8(_i2caddr, MAX30105_FIFOREADPTR),
+         readRegister8(_i2caddr, MAX30105_FIFOOVERFLOW));
+  printf("MODE      = %02X\n", readRegister8(_i2caddr, 0x09));
+  printf("FIFO_CFG  = %02X\n", readRegister8(_i2caddr, 0x08));
+  printf("SPO2_CFG  = %02X\n", readRegister8(_i2caddr, 0x0A));
+  printf("INT_EN1   = %02X\n", readRegister8(_i2caddr, 0x02));
+  uint8_t b0 = readRegister8(0x57, 0x07);
+  uint8_t b1 = readRegister8(0x57, 0x07);
+  uint8_t b2 = readRegister8(0x57, 0x07);
+  uint8_t b3 = readRegister8(0x57, 0x07);
+  uint8_t b4 = readRegister8(0x57, 0x07);
+  uint8_t b5 = readRegister8(0x57, 0x07);
+
+  printf("%02X %02X %02X %02X %02X %02X\n",
+         b0, b1, b2, b3, b4, b5);
+}
