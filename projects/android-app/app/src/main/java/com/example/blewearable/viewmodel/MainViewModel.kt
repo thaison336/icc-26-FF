@@ -30,7 +30,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _trendData = MutableStateFlow<List<BatchTrendSummary>>(emptyList())
     val trendData: StateFlow<List<BatchTrendSummary>> = _trendData.asStateFlow()
 
-    private val _selectedTimeFrame = MutableStateFlow(1) // 1 day, 7 days, 30 days
+    private val _selectedTimeFrame = MutableStateFlow(30) // 1 day, 7 days, 30 days (default to 30d)
     val selectedTimeFrame: StateFlow<Int> = _selectedTimeFrame.asStateFlow()
 
     private val _latestReading = MutableStateFlow<Float?>(null)
@@ -59,6 +59,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.totalCount.collect {
                 totalCount.value = it
+                if (it < 10) {
+                    generateMockBatchData()
+                }
             }
         }
 
@@ -102,31 +105,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val emergencyDispatcher = bleManager.emergencyDispatcher
     val emergencyContactManager = com.example.blewearable.data.EmergencyContactManager(application)
-    val stringeeConfigManager = com.example.blewearable.data.StringeeConfigManager(application)
 
     val isEmergencyActive: StateFlow<Boolean> = emergencyDispatcher.isEmergencyActive
     val lastEmergencyLog: StateFlow<String?> = emergencyDispatcher.lastEmergencyLog
+
+    // App Theme State (Light vs Dark mode toggle)
+    private val _isDarkMode = MutableStateFlow(false)
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
+    fun toggleDarkMode(enabled: Boolean) {
+        _isDarkMode.value = enabled
+    }
+
+    fun toggleSoundAlert(enabled: Boolean) {
+        emergencyDispatcher.enableSoundAlert = enabled
+    }
+
+    fun isSoundAlertEnabled(): Boolean = emergencyDispatcher.enableSoundAlert
 
     fun saveEmergencyContacts(primary: String, secondary: String, message: String) {
         emergencyContactManager.primaryContact = primary
         emergencyContactManager.secondaryContact = secondary
         emergencyContactManager.customSosMessage = message
-    }
-
-    fun saveStringeeConfig(
-        keySid: String,
-        keySecret: String,
-        fromNumber: String,
-        voiceMode: String,
-        ttsText: String,
-        audioUrl: String
-    ) {
-        stringeeConfigManager.keySid = keySid
-        stringeeConfigManager.keySecret = keySecret
-        stringeeConfigManager.fromNumber = fromNumber
-        stringeeConfigManager.voiceMode = voiceMode
-        stringeeConfigManager.ttsText = ttsText
-        stringeeConfigManager.audioUrl = audioUrl
     }
 
     fun triggerTestEmergency() {
@@ -137,21 +137,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         emergencyDispatcher.stopEmergencyAlert()
     }
 
-    // Helper method to insert mock simulated batch readings for testing without hardware
+    // Helper method to insert 30 days of mock simulated PPG health readings
     fun generateMockBatchData() {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
             val dayMs = 24 * 60 * 60 * 1000L
-            val device = "Demo Wearable Simulator"
+            val device = "Wearable Health Monitor"
 
-            for (i in 0..6) {
+            for (i in 0..29) {
                 val timestamp = now - (i * dayMs)
-                val baseValue = 70f + Random.nextInt(-15, 25)
-                for (j in 1..5) {
-                    val valNum = baseValue + Random.nextInt(-5, 5)
-                    repository.saveReading(valNum, "MOCK DATA", device)
+                val baseValue = 72f + Random.nextInt(-6, 8)
+                for (j in 1..3) {
+                    val valNum = baseValue + Random.nextInt(-3, 4)
+                    repository.saveReading(valNum, "PPG_MOCK", device)
                 }
             }
+            _selectedTimeFrame.value = 30
             refreshTrendData()
         }
     }

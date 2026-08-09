@@ -32,9 +32,6 @@ import androidx.compose.ui.unit.sp
 import com.example.blewearable.data.BatchTrendSummary
 import com.example.blewearable.ui.theme.AccentTeal
 import com.example.blewearable.ui.theme.PrimaryBlue
-import com.example.blewearable.ui.theme.SurfaceCard
-import com.example.blewearable.ui.theme.SurfaceCardBorder
-import com.example.blewearable.ui.theme.TextSecondary
 
 @Composable
 fun HistoricalTrendChart(
@@ -42,14 +39,16 @@ fun HistoricalTrendChart(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
+    val borderColor = MaterialTheme.colorScheme.outlineVariant
+    val textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(240.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(SurfaceCard)
-            .border(1.dp, SurfaceCardBorder, RoundedCornerShape(16.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         if (trendData.isEmpty()) {
@@ -61,13 +60,13 @@ fun HistoricalTrendChart(
                     Text(
                         text = "No Historical Data Saved Yet",
                         style = MaterialTheme.typography.bodyLarge,
-                        color = TextSecondary
+                        color = textColor
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Connect wearable or tap 'Generate Demo Data' below",
                         style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
+                        color = textColor
                     )
                 }
             }
@@ -88,7 +87,7 @@ fun HistoricalTrendChart(
                 for (i in 0..gridCount) {
                     val y = paddingTop + (chartHeight / gridCount) * i
                     drawLine(
-                        color = SurfaceCardBorder,
+                        color = borderColor,
                         start = Offset(0f, y),
                         end = Offset(width, y),
                         strokeWidth = 1f
@@ -122,7 +121,7 @@ fun HistoricalTrendChart(
                     // Draw X-axis Time Label
                     val labelResult = textMeasurer.measure(
                         text = item.timeLabel,
-                        style = TextStyle(color = Color(0xFF94A3B8), fontSize = 10.sp)
+                        style = TextStyle(color = textColor, fontSize = 10.sp)
                     )
                     drawText(
                         textLayoutResult = labelResult,
@@ -133,7 +132,7 @@ fun HistoricalTrendChart(
                 // Draw connecting Trend Line overlay
                 drawPath(
                     path = linePath,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = PrimaryBlue.copy(alpha = 0.8f),
                     style = Stroke(width = 4f)
                 )
             }

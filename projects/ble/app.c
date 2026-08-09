@@ -53,7 +53,7 @@ void app_process_action(void)
  * Hardware Button change callback (Simple Button driver).
  * Called when BTN0 or BTN1 state changes.
  *****************************************************************************/
-void sl_simple_button_on_change(const sl_button_t *handle)
+void sl_button_on_change(const sl_button_t *handle)
 {
   sl_button_state_t state = sl_button_get_state(handle);
   const char *state_str = (state == SL_SIMPLE_BUTTON_PRESSED) ? "PRESSED" : "RELEASED";
@@ -72,6 +72,11 @@ void sl_simple_button_on_change(const sl_button_t *handle)
       app_proceed();
     }
   }
+}
+
+void sl_simple_button_on_change(const sl_button_t *handle)
+{
+  sl_button_on_change(handle);
 }
 
 /**************************************************************************//**

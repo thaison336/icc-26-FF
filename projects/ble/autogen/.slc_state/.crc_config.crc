@@ -33,6 +33,7 @@ sl_rail_util_power_manager_init_config.h=236084665
 sl_rail_util_pti_config.h=1026490229
 sl_rail_util_sequencer_config.h=-418182703
 sl_simple_button_btn0_config.h=348411870
+sl_simple_button_btn1_config.h=-869261775
 sl_simple_button_config.h=1480115706
 sl_simple_led_led0_config.h=-427018002
 sl_simple_led_led1_config.h=785962049

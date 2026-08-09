@@ -52,7 +52,15 @@ class BleManager(private val context: Context) {
         @SuppressLint("MissingPermission")
         override fun onScanResult(callbackType: Int, result: ScanResult) {
             val device = result.device
-            val name = device.name ?: "Unknown Wearable"
+            val name = device.name
+
+            // Filter out unnamed or 'Unknown' devices so users only see named wearables
+            if (name.isNullOrBlank() || 
+                name.equals("Unknown Device", ignoreCase = true) || 
+                name.equals("Unknown Wearable", ignoreCase = true)) {
+                return
+            }
+
             val address = device.address
             val rssi = result.rssi
 

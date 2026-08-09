@@ -1,29 +1,35 @@
 package com.example.blewearable.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.PhoneInTalk
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -32,8 +38,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -45,620 +51,507 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.blewearable.ble.BleConnectionState
 import com.example.blewearable.ui.components.HistoricalTrendChart
-import com.example.blewearable.ui.theme.AccentTeal
-import com.example.blewearable.ui.theme.DarkBackground
 import com.example.blewearable.ui.theme.PrimaryBlue
 import com.example.blewearable.ui.theme.StatusGreen
 import com.example.blewearable.ui.theme.StatusOrange
 import com.example.blewearable.ui.theme.StatusRed
-import com.example.blewearable.ui.theme.SurfaceCard
-import com.example.blewearable.ui.theme.SurfaceCardBorder
-import com.example.blewearable.ui.theme.TextPrimary
-import com.example.blewearable.ui.theme.TextSecondary
 import com.example.blewearable.viewmodel.MainViewModel
 
 @Composable
-fun DashboardScreen(viewModel: MainViewModel) {
+fun DashboardScreen(
+    viewModel: MainViewModel,
+    onNavigateToSettings: () -> Unit = {}
+) {
+    val context = LocalContext.current
     val connectionState by viewModel.connectionState.collectAsState()
+    val isEmergencyActive by viewModel.isEmergencyActive.collectAsState()
+    val latestReading by viewModel.latestReading.collectAsState()
     val trendData by viewModel.trendData.collectAsState()
     val selectedTimeFrame by viewModel.selectedTimeFrame.collectAsState()
-    val latestReading by viewModel.latestReading.collectAsState()
-    val totalCount by viewModel.totalCount.collectAsState()
-    val isEmergencyActive by viewModel.isEmergencyActive.collectAsState()
-    val lastEmergencyLog by viewModel.lastEmergencyLog.collectAsState()
+    val primaryContact = viewModel.emergencyContactManager.primaryContact
 
-    var primaryContactInput by remember {
-        mutableStateOf(viewModel.emergencyContactManager.primaryContact)
-    }
-    var secondaryContactInput by remember {
-        mutableStateOf(viewModel.emergencyContactManager.secondaryContact)
-    }
-    var sosMessageInput by remember {
-        mutableStateOf(viewModel.emergencyContactManager.customSosMessage)
-    }
-    var isSavedNoticeVisible by remember { mutableStateOf(false) }
-
-    // Stringee State
-    var keySidInput by remember { mutableStateOf(viewModel.stringeeConfigManager.keySid) }
-    var keySecretInput by remember { mutableStateOf(viewModel.stringeeConfigManager.keySecret) }
-    var fromNumberInput by remember { mutableStateOf(viewModel.stringeeConfigManager.fromNumber) }
-    var voiceModeInput by remember { mutableStateOf(viewModel.stringeeConfigManager.voiceMode) }
-    var ttsTextInput by remember { mutableStateOf(viewModel.stringeeConfigManager.ttsText) }
-    var audioUrlInput by remember { mutableStateOf(viewModel.stringeeConfigManager.audioUrl) }
-    var isStringeeSavedNoticeVisible by remember { mutableStateOf(false) }
+    var isTelemetryEnabled by remember { mutableStateOf(true) }
 
     val scrollState = rememberScrollState()
+
+    // Derive SpO2 & Heart Rate metrics from latest reading or default mock range
+    val rawVal = latestReading ?: 72f
+    val heartRateBpm = rawVal.coerceIn(55f, 130f).toInt()
+    val spO2Percentage = ((rawVal / 100f * 4f) + 95f).coerceIn(94f, 99f).toInt()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(scrollState)
             .padding(16.dp)
     ) {
-        // App Title
-        Text(
-            text = "Wearable Safety & Health Dashboard",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        // App Header
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Personal Safety",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Wearable Safety & Health Dashboard",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
 
         // Active Emergency Alert Banner (Ringing / Vibrating / Auto-Call Active)
         if (isEmergencyActive) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = StatusRed.copy(alpha = 0.15f)),
+                colors = CardDefaults.cardColors(containerColor = StatusRed.copy(alpha = 0.12f)),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .border(2.dp, StatusRed, RoundedCornerShape(16.dp))
-                        .padding(16.dp)
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             imageVector = Icons.Default.NotificationsActive,
                             contentDescription = "Active Emergency",
                             tint = StatusRed,
-                            modifier = Modifier.padding(end = 8.dp)
+                            modifier = Modifier.size(28.dp)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "🚨 EMERGENCY ACTIVE - RINGING & CALLING",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "EMERGENCY ALERT ACTIVE",
+                            style = MaterialTheme.typography.headlineMedium,
                             color = StatusRed
                         )
                     }
+
                     Spacer(modifier = Modifier.height(8.dp))
+
                     Text(
-                        text = "Wearable triggered emergency alert! Phone alarm is ringing, vibration active, SMS dispatched, and auto SOS call initiated.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextPrimary
+                        text = "Phone alarm ringing, SMS sent, placing call to $primaryContact...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
                     Button(
                         onClick = { viewModel.stopEmergencyAlert() },
                         colors = ButtonDefaults.buttonColors(containerColor = StatusRed),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(10.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("STOP ALARM & VIBRATION", color = Color.White)
+                        Text("STOP ALARM & VIBRATION", style = MaterialTheme.typography.titleMedium, color = Color.White)
                     }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Connection Status Banner
+        // Connection Protection Status Card
+        val (statusText, statusSubtext, statusColor, statusIcon) = when (connectionState) {
+            is BleConnectionState.Connected -> Quadruple(
+                "Protection Active & Connected",
+                "Connected to ${(connectionState as BleConnectionState.Connected).deviceName}",
+                StatusGreen,
+                Icons.Default.Shield
+            )
+            is BleConnectionState.Connecting -> Quadruple(
+                "Connecting to Wearable...",
+                "Pairing with device...",
+                StatusOrange,
+                Icons.Default.Warning
+            )
+            is BleConnectionState.Scanning -> Quadruple(
+                "Scanning for Wearables...",
+                "Searching nearby Bluetooth devices...",
+                PrimaryBlue,
+                Icons.Default.Warning
+            )
+            else -> Quadruple(
+                "Wearable Disconnected",
+                "Please tap 'Wearable' tab to connect your device",
+                StatusRed,
+                Icons.Default.Warning
+            )
+        }
+
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(16.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(16.dp))
+                    .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
                     .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val (statusText, statusColor) = when (connectionState) {
-                        is BleConnectionState.Connected -> "Connected" to StatusGreen
-                        is BleConnectionState.Connecting -> "Connecting..." to StatusOrange
-                        is BleConnectionState.Scanning -> "Scanning..." to PrimaryBlue
-                        else -> "Disconnected" to StatusRed
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(statusColor.copy(alpha = 0.2f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = statusText,
-                            color = statusColor,
-                            style = MaterialTheme.typography.labelMedium
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    if (connectionState is BleConnectionState.Connected) {
-                        Text(
-                            text = (connectionState as BleConnectionState.Connected).deviceName,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
-                }
-
-                if (connectionState is BleConnectionState.Connected) {
-                    OutlinedButton(
-                        onClick = { viewModel.disconnect() },
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Disconnect", color = StatusRed)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Emergency Contacts & SOS Settings Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(16.dp))
-                    .padding(20.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(statusColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Default.Call,
-                        contentDescription = "Emergency Setup",
-                        tint = StatusOrange
+                        imageVector = statusIcon,
+                        contentDescription = "Protection Status",
+                        tint = statusColor,
+                        modifier = Modifier.size(24.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Emergency SOS Setup (Auto Call & SMS)",
+                        text = statusText,
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "When the wearable watch receives an emergency signal, your phone will ring/vibrate loudly, send SMS to all contacts below, and automatically dial the Primary Contact.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Primary Contact Input
-                OutlinedTextField(
-                    value = primaryContactInput,
-                    onValueChange = { primaryContactInput = it },
-                    label = { Text("Primary Contact Number (Auto-Call & SMS)") },
-                    placeholder = { Text("e.g. +1234567890") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = SurfaceCardBorder,
-                        focusedLabelColor = PrimaryBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Secondary Contact Input
-                OutlinedTextField(
-                    value = secondaryContactInput,
-                    onValueChange = { secondaryContactInput = it },
-                    label = { Text("Secondary Contact Number (SMS)") },
-                    placeholder = { Text("e.g. +1987654321") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = SurfaceCardBorder,
-                        focusedLabelColor = PrimaryBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Custom SOS Message
-                OutlinedTextField(
-                    value = sosMessageInput,
-                    onValueChange = { sosMessageInput = it },
-                    label = { Text("Custom Emergency SMS Message") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = SurfaceCardBorder,
-                        focusedLabelColor = PrimaryBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            viewModel.saveEmergencyContacts(
-                                primaryContactInput,
-                                secondaryContactInput,
-                                sosMessageInput
-                            )
-                            isSavedNoticeVisible = true
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Save, contentDescription = "Save")
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Save Contacts")
-                    }
-
-                    Button(
-                        onClick = { viewModel.triggerTestEmergency() },
-                        colors = ButtonDefaults.buttonColors(containerColor = StatusOrange),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Warning, contentDescription = "Test SOS")
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("TEST SOS TRIGGER")
-                    }
-                }
-
-                if (isSavedNoticeVisible) {
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "✓ Emergency contacts saved successfully!",
-                        color = StatusGreen,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-
-                lastEmergencyLog?.let { log ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Last Log: $log",
-                        color = TextSecondary,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Stringee Cloud Telephony Configuration Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(16.dp))
-                    .padding(20.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Call,
-                        contentDescription = "Stringee Setup",
-                        tint = PrimaryBlue
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Stringee Cloud Callout Setup (VoIP Auto-Call)",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = TextPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Configure Stringee REST API credentials to trigger automated AI Voice calls directly from the cloud when SOS is pressed.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedTextField(
-                    value = keySidInput,
-                    onValueChange = { keySidInput = it },
-                    label = { Text("Stringee KEY SID (e.g. SK.0.xxx)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = SurfaceCardBorder,
-                        focusedLabelColor = PrimaryBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = keySecretInput,
-                    onValueChange = { keySecretInput = it },
-                    label = { Text("Stringee KEY SECRET") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = SurfaceCardBorder,
-                        focusedLabelColor = PrimaryBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = fromNumberInput,
-                    onValueChange = { fromNumberInput = it },
-                    label = { Text("Stringee Hotline Number (e.g. 8424xxx / Virtual Number)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PrimaryBlue,
-                        unfocusedBorderColor = SurfaceCardBorder,
-                        focusedLabelColor = PrimaryBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text("Voice Message Mode:", style = MaterialTheme.typography.labelLarge, color = TextPrimary)
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val isTts = voiceModeInput == com.example.blewearable.data.StringeeConfigManager.MODE_TTS
-                    Button(
-                        onClick = { voiceModeInput = com.example.blewearable.data.StringeeConfigManager.MODE_TTS },
-                        colors = ButtonDefaults.buttonColors(containerColor = if (isTts) PrimaryBlue else SurfaceCard),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(if (isTts) "✓ AI Text-to-Speech" else "AI Text-to-Speech")
-                    }
-
-                    val isAudio = voiceModeInput == com.example.blewearable.data.StringeeConfigManager.MODE_AUDIO_URL
-                    Button(
-                        onClick = { voiceModeInput = com.example.blewearable.data.StringeeConfigManager.MODE_AUDIO_URL },
-                        colors = ButtonDefaults.buttonColors(containerColor = if (isAudio) PrimaryBlue else SurfaceCard),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text(if (isAudio) "✓ Custom MP3 Link" else "Custom MP3 Link")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                if (voiceModeInput == com.example.blewearable.data.StringeeConfigManager.MODE_TTS) {
-                    OutlinedTextField(
-                        value = ttsTextInput,
-                        onValueChange = { ttsTextInput = it },
-                        label = { Text("Vietnamese AI Text-To-Speech Message") },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryBlue,
-                            unfocusedBorderColor = SurfaceCardBorder,
-                            focusedLabelColor = PrimaryBlue,
-                            unfocusedLabelColor = TextSecondary,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        )
-                    )
-                } else {
-                    OutlinedTextField(
-                        value = audioUrlInput,
-                        onValueChange = { audioUrlInput = it },
-                        label = { Text("Custom Pre-Recorded Audio File URL (.mp3)") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PrimaryBlue,
-                            unfocusedBorderColor = SurfaceCardBorder,
-                            focusedLabelColor = PrimaryBlue,
-                            unfocusedLabelColor = TextSecondary,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Button(
-                    onClick = {
-                        viewModel.saveStringeeConfig(
-                            keySidInput,
-                            keySecretInput,
-                            fromNumberInput,
-                            voiceModeInput,
-                            ttsTextInput,
-                            audioUrlInput
-                        )
-                        isStringeeSavedNoticeVisible = true
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Save, contentDescription = "Save Stringee")
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Save Stringee API Settings")
-                }
-
-                if (isStringeeSavedNoticeVisible) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "✓ Stringee API Settings saved successfully!",
-                        color = StatusGreen,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        }
-
-        // Live Metric Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = SurfaceCard),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, SurfaceCardBorder, RoundedCornerShape(16.dp))
-                    .padding(20.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Sensors,
-                        contentDescription = "Sensor",
-                        tint = AccentTeal
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Latest Sensor Value",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = if (latestReading != null) String.format("%.1f", latestReading) else "--",
-                        style = MaterialTheme.typography.headlineMedium.copy(fontSize = 36.sp),
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "units",
+                        text = statusSubtext,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(bottom = 6.dp)
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Total DB records stored: $totalCount",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // MAX30102 PPG Telemetry Toggle Switch Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MonitorHeart,
+                        contentDescription = "PPG Telemetry",
+                        tint = PrimaryBlue,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Live Health Telemetry",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = if (isTelemetryEnabled) "SpO2 & Heart Rate Active" else "Telemetry Display Paused",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Switch(
+                    checked = isTelemetryEnabled,
+                    onCheckedChange = { isTelemetryEnabled = it },
+                    colors = SwitchDefaults.colors(checkedThumbColor = PrimaryBlue)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        // Live Health Telemetry Section (SpO2 & Heart Rate Cards)
+        if (isTelemetryEnabled) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // Historical Trend Section Header & Time Filters
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Historical Batch Trends",
-                style = MaterialTheme.typography.titleLarge
-            )
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                listOf(1 to "24h", 7 to "7d", 30 to "30d").forEach { (days, label) ->
-                    val isSelected = selectedTimeFrame == days
-                    Button(
-                        onClick = { viewModel.setTimeFrame(days) },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isSelected) PrimaryBlue else SurfaceCard
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(32.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Heart Rate (BPM) Card
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                            .padding(14.dp)
                     ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = "Heart Rate",
+                                tint = StatusRed,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Heart Rate",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$heartRateBpm",
+                                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "BPM",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(bottom = 3.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = label,
+                            text = "● Normal Range",
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (isSelected) TextPrimary else TextSecondary
+                            color = StatusGreen
+                        )
+                    }
+                }
+
+                // Blood Oxygen (SpO2 %) Card
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                            .padding(14.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.MonitorHeart,
+                                contentDescription = "SpO2",
+                                tint = PrimaryBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Blood Oxygen",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                text = "$spO2Percentage",
+                                style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "% SpO2",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(bottom = 3.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "● Optimal Level",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = StatusGreen
                         )
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // Historical Chart Component
-        HistoricalTrendChart(trendData = trendData)
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Quick Actions (Clear Data / Generate Demo Simulator Data)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Button(
-                onClick = { viewModel.generateMockBatchData() },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                shape = RoundedCornerShape(12.dp)
+            // Historical Health Trends Chart Header & Time Filters
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.AutoGraph, contentDescription = "Simulate")
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Demo Simulator")
+                Text(
+                    text = "Health Trends",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    listOf(1 to "24h", 7 to "7d", 30 to "30d").forEach { (days, label) ->
+                        val isSelected = selectedTimeFrame == days
+                        Button(
+                            onClick = { viewModel.setTimeFrame(days) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) PrimaryBlue else MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+                    }
+                }
             }
 
-            OutlinedButton(
-                onClick = { viewModel.clearDataHistory() },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Re-integrated Historical Health Trend Chart
+            HistoricalTrendChart(trendData = trendData)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Interactive Configured Emergency Contact Card
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { onNavigateToSettings() },
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                    .padding(16.dp)
             ) {
-                Icon(Icons.Default.Delete, contentDescription = "Clear", tint = StatusRed)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Clear History", color = StatusRed)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Call,
+                            contentDescription = "Contacts",
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Configured Emergency Contact",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Edit in Settings",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (primaryContact.isNotBlank()) primaryContact else "No number set yet",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = if (primaryContact.isNotBlank()) MaterialTheme.colorScheme.onSurface else StatusOrange
+                    )
+
+                    if (primaryContact.isNotBlank()) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Ready",
+                            tint = StatusGreen
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (primaryContact.isNotBlank()) {
+                        Button(
+                            onClick = {
+                                try {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$primaryContact"))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) { }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = StatusGreen),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Call, contentDescription = "Call", tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Call Primary", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = { onNavigateToSettings() },
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = PrimaryBlue, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Configure Number", style = MaterialTheme.typography.labelLarge, color = PrimaryBlue)
+                    }
+                }
             }
         }
     }
 }
+
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

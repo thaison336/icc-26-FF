@@ -25,11 +25,10 @@ import kotlinx.coroutines.launch
 
 class EmergencyDispatcher(private val context: Context) {
 
-    // Toggle for sound alert (Set to false for silent/public testing: vibration only)
-    var enableSoundAlert: Boolean = false
+    // Toggle for sound alert (Can be toggled in testing settings)
+    var enableSoundAlert: Boolean = true
 
     private val contactManager = EmergencyContactManager(context)
-    val stringeeCalloutService = StringeeCalloutService(context)
     private var ringtone: Ringtone? = null
     private var vibrator: Vibrator? = null
 
@@ -40,30 +39,19 @@ class EmergencyDispatcher(private val context: Context) {
     val lastEmergencyLog: StateFlow<String?> = _lastEmergencyLog.asStateFlow()
 
     @SuppressLint("MissingPermission")
-    fun triggerEmergency(triggerReason: String = "BLE Emergency Signal Received") {
+    fun triggerEmergency(triggerReason: String = "Wearable SOS Button Pressed") {
         Log.w("EmergencyDispatcher", "🚨 EMERGENCY TRIGGERED: $triggerReason")
         _isEmergencyActive.value = true
-        _lastEmergencyLog.value = "Dispatching Stringee Auto Call for $triggerReason..."
+        _lastEmergencyLog.value = "🚨 Emergency Alert Active: $triggerReason"
 
-        // Paused Device Features (Kept for future unpausing):
-        // 1. sendEmergencySms(triggerReason)
-        // 2. initiateEmergencyCall()
+        // 1. Play loud phone alarm & trigger vibration
+        startRingingAndVibration()
 
-        // Execute Stringee Cloud Auto Callout asynchronously on IO thread
-        CoroutineScope(Dispatchers.IO).launch {
-            val primaryContact = contactManager.primaryContact
-            val result = stringeeCalloutService.makeEmergencyCallout(primaryContact, triggerReason)
-            when (result) {
-                is StringeeCallResult.Success -> {
-                    Log.i("EmergencyDispatcher", "Stringee SUCCESS: ${result.message}")
-                    _lastEmergencyLog.value = "✓ Stringee Call Sent to $primaryContact (ID: ${result.callId})"
-                }
-                is StringeeCallResult.Error -> {
-                    Log.e("EmergencyDispatcher", "Stringee ERROR: ${result.errorReason}")
-                    _lastEmergencyLog.value = "✗ Stringee Error: ${result.errorReason}"
-                }
-            }
-        }
+        // 2. Dispatch SMS to emergency contacts
+        sendEmergencySms(triggerReason)
+
+        // 3. Initiate native phone call to primary emergency contact
+        initiateEmergencyCall()
     }
 
     private fun startRingingAndVibration() {
