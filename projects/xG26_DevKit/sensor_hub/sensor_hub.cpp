@@ -61,6 +61,8 @@ bool SensorHub::initSensors(uint16_t sampleRate)
     this->max30102_freq = sampleRate * MAX30102_AVERAGING;
     if (initMax30102(this->m_max30102, sampleRate) && initIMU(this->m_imu, sampleRate))
     {
+        // Tạo interrupt task ngay từ đầu để driver I2C được xử lý đúng cách
+        // AGC sẽ đọc từ software buffer mà task này fill vào
         xTaskCreate(MAX30102TaskINT, "MAX30102_Task", 256, (void *)&m_max30102, tskIDLE_PRIORITY + 3, &m_max30102TaskHandle);
         resetSensor();
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -194,135 +196,190 @@ void SensorHub::resumeInterruptTask()
     {
         vTaskResume(m_max30102TaskHandle);
     }
+    else
+    {
+        xTaskCreate(MAX30102TaskINT, "MAX30102_Task", 256, (void *)&m_max30102, tskIDLE_PRIORITY + 3, &m_max30102TaskHandle);
+    }
 }
 
 //// AGC amplitude current Led RED and IR by raw IR and Red
 
 void SensorHub::agcAmplitudeLed()
 {
-    // Tạm dừng Task interrupt để tránh xung đột I2C bus
-    suspendInterruptTask();
+    // KHÔNG suspend interrupt task - để task đó tiếp tục fill software buffer qua I2C
+    // AGC chỉ đọc từ software buffer (thread-safe) và queue LED commands cho task xử lý
 
     uint32_t full_scale_adc = m_max30102.getADCrange();
-    printf("[AGC] Max ADC range: %lu\r\n", full_scale_adc);
+    if (full_scale_adc == 0)
+    {
+        full_scale_adc = 262143; // 18-bit ADC fallback
+    }
+    printf("[AGC] Max ADC range: %lu\r\n", (unsigned long)full_scale_adc);
 
-    const uint32_t SAMPLE_PERIOD_MS = 100;
-    const uint32_t FINGER_THRESHOLD = 30000; // Ngưỡng tín hiệu tối thiểu để xác nhận có tay trên sensor
-    uint32_t agc_cooldown_counter = 0;
-    uint8_t current_red_amp = 0x1F;
-    uint8_t current_ir_amp = 0x1F;
+    const uint32_t FINGER_THRESHOLD = 30000;
+    const uint32_t TARGET_MIN = (uint32_t)(0.40f * full_scale_adc);
+    const uint32_t TARGET_MAX = (uint32_t)(0.60f * full_scale_adc);
+    const uint32_t HIGH_SATURATION = (uint32_t)(0.90f * full_scale_adc);
 
-    m_max30102.driver().setPulseAmplitudeRed(current_red_amp);
-    m_max30102.driver().setPulseAmplitudeIR(current_ir_amp);
-    m_max30102.driver().clearFIFO(); // clearFIFO() đã tự clear INT latch, không cần setSampleRate() sau đây nữa
+    // Khởi tạo dòng LED ban đầu qua manager queue (interrupt task sẽ ghi xuống hardware)
+    uint8_t current_red_amp = 60;
+    uint8_t current_ir_amp = 60;
+    m_max30102.setPulseAmplitudeRed(current_red_amp);
+    m_max30102.setPulseAmplitudeIR(current_ir_amp);
+    // Xả FIFO qua manager (interrupt task xử lý) để bắt đầu từ trạng thái sạch
+    m_max30102.clearFIFO();
+    m_max30102.setSampleRate(this->max30102_freq);
 
-    // 1. Kiểm tra chắc chắn người dùng đã đặt tay lên sensor trước khi bắt đầu AGC
+    // 1. Chờ interrupt task đọc đủ dữ liệu và phát hiện tay đặt vào
     printf("[AGC] Waiting for finger to be placed on sensor...\r\n");
+
+    uint32_t wait_print_counter = 0;
     while (true)
     {
-        m_max30102.driver().check();
-        if (m_max30102.driver().available() > 1)
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+        uint8_t avail = m_max30102.available();
+
+        if (avail > 0)
         {
-            m_max30102.driver().nextSample();
-            uint32_t checkRed = m_max30102.driver().getFIFORed();
-            uint32_t checkIR = m_max30102.driver().getFIFOIR();
-            m_max30102.driver().nextSample();
+            uint32_t checkRed = m_max30102.getFIFORed();
+            uint32_t checkIR = m_max30102.getFIFOIR();
+            m_max30102.nextSample();
 
             if (checkIR >= FINGER_THRESHOLD || checkRed >= FINGER_THRESHOLD)
             {
-                printf("[AGC] Finger detected (IR: %lu, RED: %lu). Starting AGC...\r\n",
+                printf("[AGC] Finger detected! (IR: %lu, RED: %lu). Starting AGC calibration...\r\n",
                        (unsigned long)checkIR, (unsigned long)checkRed);
+                m_max30102.clearFIFO();
+                m_max30102.setSampleRate(this->max30102_freq);
+                vTaskDelay(pdMS_TO_TICKS(100));
                 break;
             }
-            else
-            {
-                printf("[AGC] No finger detected (IR: %lu < %lu). Waiting...\r\n",
-                       (unsigned long)checkIR, (unsigned long)FINGER_THRESHOLD);
-            }
-        }
-        m_max30102.driver().clearFIFO();
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
 
-    // 2. Tiến hành AGC khi đã có tay trên sensor
-    while (agc_cooldown_counter < SAMPLE_PERIOD_MS)
-    {
-        uint32_t ppgRed = 0, ppgIR = 0;
-        m_max30102.driver().check();
-        if (m_max30102.driver().available() > 1)
-        {
-            m_max30102.driver().nextSample();
-            ppgRed = m_max30102.driver().getFIFORed();
-            ppgIR = m_max30102.driver().getFIFOIR();
-            m_max30102.driver().nextSample();
+            if (++wait_print_counter % 10 == 0)
+            {
+                printf("[AGC] Waiting for finger... (IR: %lu, RED: %lu < %lu)\r\n",
+                       (unsigned long)checkIR, (unsigned long)checkRed,
+                       (unsigned long)FINGER_THRESHOLD);
+            }
         }
         else
         {
+            if (++wait_print_counter % 10 == 0)
+            {
+                printf("[AGC] Waiting for sensor data...\r\n");
+            }
+        }
+    }
+
+    // 2. AGC Calibration - đọc từ software buffer, queue LED commands cho interrupt task
+    printf("[AGC] Calibrating LED amplitudes (Target: %lu - %lu)...\r\n",
+           (unsigned long)TARGET_MIN, (unsigned long)TARGET_MAX);
+
+    uint32_t stable_count = 0;
+    const uint32_t MAX_AGC_ITERATIONS = 60;
+    uint32_t iteration = 0;
+
+    while (iteration < MAX_AGC_ITERATIONS)
+    {
+        iteration++;
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+        uint8_t avail = m_max30102.available();
+        if (avail == 0)
+        {
+            continue;
+        }
+
+        // Đọc mẫu cuối cùng trong buffer (đã được interrupt task fill)
+        uint32_t ppgRed = 0, ppgIR = 0;
+        // Xả hết trừ 1 mẫu cuối để lấy giá trị mới nhất
+        while (m_max30102.available() > 1)
+        {
+            m_max30102.nextSample();
+        }
+        ppgRed = m_max30102.getFIFORed();
+        ppgIR = m_max30102.getFIFOIR();
+        m_max30102.nextSample();
+
+        if (ppgIR < FINGER_THRESHOLD && ppgRed < FINGER_THRESHOLD)
+        {
+            printf("[AGC] Finger removed! Pausing...\r\n");
+            stable_count = 0;
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
         }
 
-        // Tạm dừng điều chỉnh nếu người dùng nhấc tay khỏi sensor giữa chừng
-        if (ppgIR < FINGER_THRESHOLD && ppgRed < FINGER_THRESHOLD)
-        {
-            printf("[AGC] Finger removed during AGC! Pausing adjustment...\r\n");
-            m_max30102.driver().clearFIFO();
-            vTaskDelay(pdMS_TO_TICKS(200));
-            continue;
-        }
+        bool is_red_ok = (ppgRed >= TARGET_MIN && ppgRed <= TARGET_MAX);
+        bool is_ir_ok = (ppgIR >= TARGET_MIN && ppgIR <= TARGET_MAX);
 
-        bool is_hardware_adjusted = false;
-        printf("%lu, %lu, %u, %u.\r\n", (unsigned long)ppgRed, (unsigned long)ppgIR, current_red_amp, current_ir_amp);
+        printf("[AGC #%lu] RED=%lu (Amp=0x%02X) IR=%lu (Amp=0x%02X)\r\n",
+               (unsigned long)iteration, (unsigned long)ppgRed, current_red_amp,
+               (unsigned long)ppgIR, current_ir_amp);
 
-        // Chỉnh dựa trên dc_track thay vì raw để không bị méo biên độ bởi sóng AC
-        if (ppgRed > 0.6f * full_scale_adc && current_red_amp > 10)
+        if (is_red_ok && is_ir_ok)
         {
-            if (ppgRed > 240000.0f)
-                current_red_amp -= 5;
-            else
+            stable_count++;
+            if (stable_count >= 3)
             {
-                current_red_amp--;
+                printf("[AGC] CONVERGED & STABLE!\r\n");
+                break;
             }
-
-            is_hardware_adjusted = true;
         }
-        else if (ppgRed < 0.4f * full_scale_adc && current_red_amp < 245)
+        else
         {
-            current_red_amp++;
-            is_hardware_adjusted = true;
+            stable_count = 0;
         }
 
-        if (ppgIR > 0.6f * full_scale_adc && current_ir_amp > 10)
+        bool changed = false;
+
+        // Điều chỉnh RED
+        if (ppgRed > HIGH_SATURATION && current_red_amp > 5)
         {
-            if (ppgIR > 240000.0f)
-                current_ir_amp -= 5;
-            else
-            {
-                current_ir_amp--;
-            }
-
-            is_hardware_adjusted = true;
+            current_red_amp = (current_red_amp > 15) ? (current_red_amp - 10) : 1;
+            changed = true;
         }
-        else if (ppgIR < 0.4f * full_scale_adc && current_ir_amp < 245)
+        else if (ppgRed > TARGET_MAX && current_red_amp > 1)
         {
-            current_ir_amp++;
-            is_hardware_adjusted = true;
+            uint8_t step = (ppgRed - TARGET_MAX > 30000) ? 3 : 1;
+            current_red_amp = (current_red_amp > step) ? (current_red_amp - step) : 1;
+            changed = true;
         }
-
-        if (is_hardware_adjusted)
+        else if (ppgRed < TARGET_MIN && current_red_amp < 0xFE)
         {
-            m_max30102.driver().setPulseAmplitudeRed(current_red_amp);
-            m_max30102.driver().setPulseAmplitudeIR(current_ir_amp);
+            uint8_t step = (TARGET_MIN - ppgRed > 30000) ? 3 : 1;
+            current_red_amp = (current_red_amp + step > 0xFF) ? 0xFF : (current_red_amp + step);
+            changed = true;
         }
 
-        m_max30102.driver().clearFIFO();
-        agc_cooldown_counter++;
-        vTaskDelay(pdMS_TO_TICKS(50));
+        // Điều chỉnh IR
+        if (ppgIR > HIGH_SATURATION && current_ir_amp > 5)
+        {
+            current_ir_amp = (current_ir_amp > 15) ? (current_ir_amp - 10) : 1;
+            changed = true;
+        }
+        else if (ppgIR > TARGET_MAX && current_ir_amp > 1)
+        {
+            uint8_t step = (ppgIR - TARGET_MAX > 30000) ? 3 : 1;
+            current_ir_amp = (current_ir_amp > step) ? (current_ir_amp - step) : 1;
+            changed = true;
+        }
+        else if (ppgIR < TARGET_MIN && current_ir_amp < 0xFE)
+        {
+            uint8_t step = (TARGET_MIN - ppgIR > 30000) ? 3 : 1;
+            current_ir_amp = (current_ir_amp + step > 0xFF) ? 0xFF : (current_ir_amp + step);
+            changed = true;
+        }
+
+        if (changed)
+        {
+            // Queue lệnh qua manager - interrupt task sẽ apply vào hardware và clearFIFO tự động
+            m_max30102.setPulseAmplitudeRed(current_red_amp);
+            m_max30102.setPulseAmplitudeIR(current_ir_amp);
+        }
     }
 
-    printf("the final amp red: %u | the final amp ir: %u\r\n", current_red_amp, current_ir_amp);
-
-    // Phục hồi Task interrupt sau khi AGC hoàn thành
-    m_max30102.driver().clearFIFO();
-    resumeInterruptTask();
+    printf("[AGC] DONE: RED Amp=0x%02X, IR Amp=0x%02X\r\n",
+           current_red_amp, current_ir_amp);
+    // Interrupt task vẫn đang chạy, không cần resume
 }

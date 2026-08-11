@@ -1,4 +1,5 @@
 #include "somniguard_fsm.h"
+#include "ble_notification_manager.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include <string.h>
@@ -169,6 +170,14 @@ void somniguard_fsm_set_top_state(somniguard_fsm_t *fsm, somniguard_top_fsm_stat
     fsm->prev_top_state = fsm->top_state;
     fsm->top_state = new_state;
     fsm->top_state_entry_ms = now_ms;
+
+    // Phát gói tin BLE thông báo chuyển trạng thái hệ thống
+    somniguard_ble_notify_event(
+        SOMNIGUARD_BLE_EVT_TYPE_POWER_SYSTEM,
+        SOMNIGUARD_BLE_EVT_CODE_FSM_STATE_CHG,
+        (uint16_t)fsm->prev_top_state,
+        (uint16_t)new_state
+    );
 }
 
 void somniguard_fsm_set_sub_state(somniguard_fsm_t *fsm, somniguard_sub_fsm_state_t new_sub_state)
@@ -195,10 +204,10 @@ void somniguard_fsm_set_active_state(somniguard_fsm_t *fsm, somniguard_active_st
     }
 
     uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-    printf("--> [FSM ACTIVE SUB TRANSITION] %s -> %s (at %lu ms)\r\n",
-           somniguard_active_state_str(fsm->active_state),
-           somniguard_active_state_str(new_sub_state),
-           (unsigned long)now_ms);
+    // printf("--> [FSM ACTIVE SUB TRANSITION] %s -> %s (at %lu ms)\r\n",
+    //        somniguard_active_state_str(fsm->active_state),
+    //        somniguard_active_state_str(new_sub_state),
+    //        (unsigned long)now_ms);
     fsm->active_state = new_sub_state;
     fsm->sub_state_entry_ms = now_ms;
 }
@@ -240,10 +249,19 @@ void somniguard_power_off(somniguard_fsm_t *fsm)
     fsm->requested_imu_freq = 0;
     fsm->requested_ppg_freq = 0;
 
+    // 2. Tắt dòng LED và Shutdown MAX30102
+    if (fsm->hub != nullptr)
+    {
+        fsm->hub->MAX30102_driver().setPulseAmplitudeRed(0);
+        fsm->hub->MAX30102_driver().setPulseAmplitudeIR(0);
+        fsm->hub->MAX30102_driver().driver().shutDown(); // <-- Gửi lệnh Shutdown I2C
+    }
+
     // Reset bộ đệm & thuật toán
     somniguard_dsp_reset(&fsm->dsp_pro);
     somniguard_buffer_reset(&fsm->buffer_pro);
     somniguard_motion_reset(&fsm->motion_pro);
+    somniguard_fsm_apply_actuators(fsm);
 }
 
 somniguard_ai_event_t somniguard_ai_predict(const somniguard_buffer_t *buffer)
@@ -374,7 +392,7 @@ void somniguard_fsm_task(void *pvParameters)
             vTaskDelay(pdMS_TO_TICKS(5000)); // hiện thị led biểu thị trạng thái thiết bị chuẩn bị tắt
             // ham thuc hien BLE thong bao cho app tren dt bt thiet bi da tat
             // ham thuc hien tat nguon
-            somniguard_power_off(fsm);
+            somniguard_enter_em4_shutoff(fsm);
             break;
         }
         case FSM_TOP_OFF_FINGER_SUSPEND:
@@ -388,38 +406,87 @@ void somniguard_fsm_task(void *pvParameters)
             // Entry action: Chỉ thực hiện 1 lần khi mới vào state
             if (!fsm->off_finger_entry_done)
             {
-                fsm->hub->MAX30102_driver().clearFIFO();
-                fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                somniguard_dsp_reset(&fsm->dsp_pro);
-                somniguard_buffer_reset(&fsm->buffer_pro);
-
-                if (fsm->prev_top_state == FSM_TOP_ACTIVE_MODE)
+                somniguard_ble_notify_event(
+                    SOMNIGUARD_BLE_EVT_TYPE_SENSOR_STATUS,
+                    SOMNIGUARD_BLE_EVT_CODE_FINGER_REMOVED,
+                    (uint16_t)(timestamp_ms - fsm->top_state_entry_ms),
+                    0
+                );
+                if (fsm->hub != nullptr)
                 {
-                    fsm->vibrate_level = 1; // Rung nhẹ nhắc nhở người dùng đeo lại ngón tay
+                    fsm->hub->MAX30102_driver().setPulseAmplitudeRed(0);
+                    fsm->hub->MAX30102_driver().setPulseAmplitudeIR(0);
+                    fsm->hub->MAX30102_driver().driver().shutDown();
                 }
-                else
-                {
-                    fsm->vibrate_level = 0;
-                }
+                fsm->requested_ppg_freq = 0;
+                fsm->requested_imu_freq = 0;
                 fsm->off_finger_entry_done = true;
             }
 
-            // Nếu người dùng đeo lại ngón tay (cảm biến phát hiện lại ngón)
+            // 2. CƠ CHẾ ĐỌC THỬ ĐỊNH KỲ (PROBE) MỖI 1000MS
+            static uint32_t last_probe_ms = 0;
+            if (timestamp_ms - last_probe_ms >= 1000UL)
+            {
+                last_probe_ms = timestamp_ms;
+                if (fsm->hub != nullptr)
+                {
+                    // Bật MAX30102 trong 50ms để DataProcessingTask đọc thử mẫu mới thực tế từ phần cứng
+                    fsm->hub->MAX30102_driver().driver().wakeUp();
+                    fsm->hub->MAX30102_driver().setPulseAmplitudeIR(0x1F);
+                    fsm->hub->MAX30102_driver().setPulseAmplitudeRed(0x1F);
+                    fsm->hub->MAX30102_driver().clearFIFO();
+                    fsm->hub->MAX30102_driver().setSampleRate(50);
+
+                    vTaskDelay(pdMS_TO_TICKS(100));
+
+                    uint8_t avail = fsm->hub->MAX30102_driver().available();
+                    if (avail == 0)
+                    {
+                        continue;
+                    }
+
+                    // Đọc mẫu cuối cùng trong buffer (đã được interrupt task fill)
+                    uint32_t ppgIR = 0;
+                    // Xả hết trừ 1 mẫu cuối để lấy giá trị mới nhất
+                    while (fsm->hub->MAX30102_driver().available() > 1)
+                    {
+                        fsm->hub->MAX30102_driver().nextSample();
+                    }
+
+                    ppgIR = fsm->hub->MAX30102_driver().getFIFOIR();
+                    fsm->hub->MAX30102_driver().nextSample();
+                    if (ppgIR <= 30000)
+                    {
+                        fsm->dsp_pro.is_finger_attached = false;
+                    }
+                    else
+                        fsm->dsp_pro.is_finger_attached = true;
+                }
+            }
+            // 3. XỬ LÝ CHUYỂN STATE
             if (fsm->dsp_pro.is_finger_attached)
             {
-                somniguard_top_fsm_state_t target_state = (fsm->prev_top_state != FSM_TOP_INACTIVE)
+                // Thông báo ngón tay đã đeo trở lại qua BLE
+                somniguard_ble_notify_event(
+                    SOMNIGUARD_BLE_EVT_TYPE_SENSOR_STATUS,
+                    SOMNIGUARD_BLE_EVT_CODE_FINGER_ATTACHED,
+                    (uint16_t)(timestamp_ms - fsm->top_state_entry_ms),
+                    0
+                );
+                // Khôi phục lại trạng thái ACTIVE_MODE hoặc prev_state
+                uint32_t duration_ms = timestamp_ms - fsm->top_state_entry_ms;
+                somniguard_top_fsm_state_t target_state = (duration_ms < 5000UL && fsm->prev_top_state != FSM_TOP_INACTIVE)
                                                               ? fsm->prev_top_state
                                                               : FSM_TOP_ACTIVE_MODE;
-                uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
                 fsm->prev_top_state = fsm->top_state;
                 fsm->top_state = target_state;
-                fsm->top_state_entry_ms = now_ms;
-                fsm->off_finger_entry_done = false; // Reset cho lần entry sau
-                fsm->active_init_done = false;      // Reset active init flag
+                fsm->top_state_entry_ms = timestamp_ms;
+                fsm->off_finger_entry_done = false;
+                fsm->active_init_done = false;
             }
-            // Nếu hở ngón quá lâu (60s) -> chuyển về INACTIVE
             else if (timestamp_ms - fsm->top_state_entry_ms >= 60000UL)
             {
+                // Quá 60 giây không đeo lại -> Chuyển INACTIVE (Chạy EM4 Shutoff)
                 fsm->top_state = FSM_TOP_INACTIVE;
                 fsm->off_finger_entry_done = false;
             }
@@ -692,8 +759,8 @@ void somniguard_active_mode_task(void *pvParameters)
                     // Đặt cấu hình lấy mẫu tiết kiệm pin
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ; // 25Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
-
-                    fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
+                    fsm->hub->MAX30102_driver().driver().wakeUp();
+                    //   fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
                     fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     fsm->active_init_done = true;
                 }
@@ -715,7 +782,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     // Nâng freq khi chuyển sang PRE_SLEEP
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_SLEEP_HZ; // 50Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_SLEEP_HZ; // 50Hz
-                    fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
+                                                                          //  fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
                     fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_PRE_SLEEP);
                 }
@@ -730,7 +797,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     // Hạ freq về ACTIVE khi quay lại WAKEFUL
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ; // 25Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
-                    fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
+                                                                           // fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
                     fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_WAKEFUL);
                 }
@@ -750,7 +817,8 @@ void somniguard_active_mode_task(void *pvParameters)
                     // Hạ freq về ACTIVE khi quay lại WAKEFUL
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ;
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ;
-                    fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
+                    //  fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
+                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_WAKEFUL);
                 }
                 break;
@@ -803,7 +871,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_SLEEP_HZ;
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_SLEEP_HZ;
 
-                    fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
+                    //   fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
                     fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     fsm->sleep_buffering_entry_done = true;
 
@@ -934,4 +1002,42 @@ void somniguard_fsm_apply_actuators(somniguard_fsm_t *fsm)
     {
         somniguard_BLE_control(); // Phát gói tin BLE SOS khẩn cấp
     }
+}
+
+#include "em_emu.h"
+#include "em_gpio.h"
+
+void somniguard_enter_em4_shutoff(somniguard_fsm_t *fsm)
+{
+    printf("\r\n[EMU POWER] Entering EM4 Shutoff Mode via EMLIB...\r\n");
+
+    // Phát gói tin BLE báo chuẩn bị tắt nguồn
+    somniguard_ble_notify_event(
+        SOMNIGUARD_BLE_EVT_TYPE_POWER_SYSTEM,
+        SOMNIGUARD_BLE_EVT_CODE_EM4_SHUTOFF,
+        0, 0
+    );
+
+    // 1. Tắt các thiết bị ngoại vi & cảm biến (MAX30102)
+    if (fsm != NULL)
+    {
+        somniguard_power_off(fsm);
+        if (fsm->hub != NULL)
+        {
+            // fsm->hub->MAX30102_driver().shutDown();
+        }
+    }
+
+    // 2. Cấu hình chân nút bấm (VD: Chân Pin 4) làm ngắt EM4 Wakeup Pin
+    // Khi nhấn nút, MCU sẽ tự động tỉnh dậy từ EM4 và Reset thiết bị
+    GPIO_EM4WUExtIntConfig(gpioPortB, 3, 4, false, true);
+
+    // 3. Cấu hình thông số EM4 (Tắt Unretained RAM để tiết kiệm pin tối đa ~100nA)
+    EMU_EM4Init_TypeDef em4Init = EMU_EM4INIT_DEFAULT;
+    em4Init.retainLfxo = false;
+    em4Init.em4State = emuEM4Shutoff; // Mức Shutoff tiết kiệm pin nhất
+    EMU_EM4Init(&em4Init);
+
+    // 4. Lệnh ép MCU nhảy thẳng vào EM4 Shutoff
+    EMU_EnterEM4();
 }

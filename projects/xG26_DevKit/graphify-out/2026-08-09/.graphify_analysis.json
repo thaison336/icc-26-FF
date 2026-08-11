@@ -1,0 +1,584 @@
+{
+  "communities": {
+    "0": [
+      "max30102_driver_max30105_cpp_max30102_driver_max30105",
+      "max30102_driver_max30105_h_semaphorehandle_t",
+      "max30102_driver_max30105_max30105",
+      "max30102_driver_max30105_max30105_activeleds",
+      "max30102_driver_max30105_max30105_available",
+      "max30102_driver_max30105_max30105_begin",
+      "max30102_driver_max30105_max30105_bitmask",
+      "max30102_driver_max30105_max30105_check",
+      "max30102_driver_max30105_max30105_cleardatabuffer",
+      "max30102_driver_max30105_max30105_clearfifo",
+      "max30102_driver_max30105_max30105_debugdumpconfig",
+      "max30102_driver_max30105_max30105_disableafull",
+      "max30102_driver_max30105_max30105_disablealcovf",
+      "max30102_driver_max30105_max30105_disabledatardy",
+      "max30102_driver_max30105_max30105_disabledietemprdy",
+      "max30102_driver_max30105_max30105_disablefiforollover",
+      "max30102_driver_max30105_max30105_disableproxint",
+      "max30102_driver_max30105_max30105_disableslots",
+      "max30102_driver_max30105_max30105_dumpfifo",
+      "max30102_driver_max30105_max30105_enableafull",
+      "max30102_driver_max30105_max30105_enablealcovf",
+      "max30102_driver_max30105_max30105_enabledatardy",
+      "max30102_driver_max30105_max30105_enabledietemprdy",
+      "max30102_driver_max30105_max30105_enablefiforollover",
+      "max30102_driver_max30105_max30105_enableproxint",
+      "max30102_driver_max30105_max30105_enableslot",
+      "max30102_driver_max30105_max30105_fifobuffer",
+      "max30102_driver_max30105_max30105_getadcrange",
+      "max30102_driver_max30105_max30105_getfifogreen",
+      "max30102_driver_max30105_max30105_getfifoir",
+      "max30102_driver_max30105_max30105_getfifored",
+      "max30102_driver_max30105_max30105_getgreen",
+      "max30102_driver_max30105_max30105_getint1",
+      "max30102_driver_max30105_max30105_getint2",
+      "max30102_driver_max30105_max30105_getir",
+      "max30102_driver_max30105_max30105_getoverflowcounter",
+      "max30102_driver_max30105_max30105_getreadpointer",
+      "max30102_driver_max30105_max30105_getred",
+      "max30102_driver_max30105_max30105_getrevisionid",
+      "max30102_driver_max30105_max30105_getwritepointer",
+      "max30102_driver_max30105_max30105_i2caddr",
+      "max30102_driver_max30105_max30105_m_buffermutex",
+      "max30102_driver_max30105_max30105_m_i2cbus",
+      "max30102_driver_max30105_max30105_max30102_setsamplerate",
+      "max30102_driver_max30105_max30105_max30105",
+      "max30102_driver_max30105_max30105_nextsample",
+      "max30102_driver_max30105_max30105_readpartid",
+      "max30102_driver_max30105_max30105_readregister8",
+      "max30102_driver_max30105_max30105_readrevisionid",
+      "max30102_driver_max30105_max30105_readtemperature",
+      "max30102_driver_max30105_max30105_readtemperaturef",
+      "max30102_driver_max30105_max30105_revisionid",
+      "max30102_driver_max30105_max30105_safecheck",
+      "max30102_driver_max30105_max30105_sense",
+      "max30102_driver_max30105_max30105_setadcrange",
+      "max30102_driver_max30105_max30105_setfifoalmostfull",
+      "max30102_driver_max30105_max30105_setfifoaverage",
+      "max30102_driver_max30105_max30105_setledmode",
+      "max30102_driver_max30105_max30105_setproximitythreshold",
+      "max30102_driver_max30105_max30105_setproxintthresh",
+      "max30102_driver_max30105_max30105_setpulseamplitudegreen",
+      "max30102_driver_max30105_max30105_setpulseamplitudeir",
+      "max30102_driver_max30105_max30105_setpulseamplitudeproximity",
+      "max30102_driver_max30105_max30105_setpulseamplitudered",
+      "max30102_driver_max30105_max30105_setpulsewidth",
+      "max30102_driver_max30105_max30105_setsamplerate",
+      "max30102_driver_max30105_max30105_setup",
+      "max30102_driver_max30105_max30105_shutdown",
+      "max30102_driver_max30105_max30105_softreset",
+      "max30102_driver_max30105_max30105_wakeup",
+      "max30102_driver_max30105_max30105_writeregister8",
+      "sense_struct"
+    ],
+    "1": [
+      "max30102_driver_max30102_manager_cpp_max30102_driver_max30102_manager",
+      "max30102_driver_max30102_manager_cpp_queuehandle_t",
+      "max30102_driver_max30102_manager_h_queuehandle_t",
+      "max30102_driver_max30102_manager_h_taskhandle_t",
+      "max30102_driver_max30102_manager_init_max30102_interrupt",
+      "max30102_driver_max30102_manager_max30102_gpio_callback",
+      "max30102_driver_max30102_manager_max30102_manager",
+      "max30102_driver_max30102_manager_max30102_manager_available",
+      "max30102_driver_max30102_manager_max30102_manager_begin",
+      "max30102_driver_max30102_manager_max30102_manager_clearfifo",
+      "max30102_driver_max30102_manager_max30102_manager_commandqueue",
+      "max30102_driver_max30102_manager_max30102_manager_disabledatardy",
+      "max30102_driver_max30102_manager_max30102_manager_enabledatardy",
+      "max30102_driver_max30102_manager_max30102_manager_getadcrange",
+      "max30102_driver_max30102_manager_max30102_manager_getfifogreen",
+      "max30102_driver_max30102_manager_max30102_manager_getfifoir",
+      "max30102_driver_max30102_manager_max30102_manager_getfifored",
+      "max30102_driver_max30102_manager_max30102_manager_getgreen",
+      "max30102_driver_max30102_manager_max30102_manager_getir",
+      "max30102_driver_max30102_manager_max30102_manager_getred",
+      "max30102_driver_max30102_manager_max30102_manager_getrevisionid",
+      "max30102_driver_max30102_manager_max30102_manager_m_cmdqueue",
+      "max30102_driver_max30102_manager_max30102_manager_m_dataready",
+      "max30102_driver_max30102_manager_max30102_manager_m_sensor",
+      "max30102_driver_max30102_manager_max30102_manager_m_taskhandle",
+      "max30102_driver_max30102_manager_max30102_manager_max30102_manager",
+      "max30102_driver_max30102_manager_max30102_manager_nextsample",
+      "max30102_driver_max30102_manager_max30102_manager_notifyfromisr",
+      "max30102_driver_max30102_manager_max30102_manager_sendcommand",
+      "max30102_driver_max30102_manager_max30102_manager_setadcrange",
+      "max30102_driver_max30102_manager_max30102_manager_setpulseamplitudegreen",
+      "max30102_driver_max30102_manager_max30102_manager_setpulseamplitudeir",
+      "max30102_driver_max30102_manager_max30102_manager_setpulseamplitudered",
+      "max30102_driver_max30102_manager_max30102_manager_setpulsewidth",
+      "max30102_driver_max30102_manager_max30102_manager_setsamplerate",
+      "max30102_driver_max30102_manager_max30102_manager_setup",
+      "max30102_driver_max30102_manager_max30102_manager_softreset",
+      "max30102_driver_max30102_manager_max30102_manager_task",
+      "sensor_hub_sensor_hub_max30102taskint",
+      "sensorcommandtype"
+    ],
+    "2": [
+      "config_sl_icm40627_config",
+      "imu_data_float_t",
+      "imu_driver_imu_cpp_imu_driver_imu",
+      "imu_driver_imu_h_imu_driver_imu",
+      "imu_driver_imu_h_semaphorehandle_t",
+      "imu_driver_imu_imu",
+      "imu_driver_imu_imu_acc_scale",
+      "imu_driver_imu_imu_available",
+      "imu_driver_imu_imu_buffer",
+      "imu_driver_imu_imu_buffer_size",
+      "imu_driver_imu_imu_clearfifo",
+      "imu_driver_imu_imu_count",
+      "imu_driver_imu_imu_data_float",
+      "imu_driver_imu_imu_data_float_gx",
+      "imu_driver_imu_imu_data_float_gy",
+      "imu_driver_imu_imu_data_float_gz",
+      "imu_driver_imu_imu_data_float_x",
+      "imu_driver_imu_imu_data_float_y",
+      "imu_driver_imu_imu_data_float_z",
+      "imu_driver_imu_imu_gyr_scale",
+      "imu_driver_imu_imu_head",
+      "imu_driver_imu_imu_imu",
+      "imu_driver_imu_imu_imu_getfifo",
+      "imu_driver_imu_imu_imumutex",
+      "imu_driver_imu_imu_isrcallback",
+      "imu_driver_imu_imu_operator",
+      "imu_driver_imu_imu_processinterrupt",
+      "imu_driver_imu_imu_setup",
+      "imu_driver_imu_imu_tail",
+      "imu_driver_imu_normalize",
+      "imu_raw_data_t",
+      "sl_status_t"
+    ],
+    "3": [
+      "app_fsmloggertask",
+      "somniguard_active_state_t",
+      "somniguard_ai_event_t",
+      "somniguard_fsm_t",
+      "somniguard_layer_somniguard_fsm_cpp_somniguard_buffer_t",
+      "somniguard_layer_somniguard_fsm_cpp_somniguard_layer_somniguard_fsm",
+      "somniguard_layer_somniguard_fsm_somniguard_active_mode_task",
+      "somniguard_layer_somniguard_fsm_somniguard_active_state_str",
+      "somniguard_layer_somniguard_fsm_somniguard_ai_event_str",
+      "somniguard_layer_somniguard_fsm_somniguard_ai_predict",
+      "somniguard_layer_somniguard_fsm_somniguard_ble_control",
+      "somniguard_layer_somniguard_fsm_somniguard_deep_analysis_task",
+      "somniguard_layer_somniguard_fsm_somniguard_fsm_apply_actuators",
+      "somniguard_layer_somniguard_fsm_somniguard_fsm_init",
+      "somniguard_layer_somniguard_fsm_somniguard_fsm_set_active_state",
+      "somniguard_layer_somniguard_fsm_somniguard_fsm_set_normal_state",
+      "somniguard_layer_somniguard_fsm_somniguard_fsm_set_sub_state",
+      "somniguard_layer_somniguard_fsm_somniguard_fsm_set_top_state",
+      "somniguard_layer_somniguard_fsm_somniguard_fsm_task",
+      "somniguard_layer_somniguard_fsm_somniguard_haptic_motor",
+      "somniguard_layer_somniguard_fsm_somniguard_led_display",
+      "somniguard_layer_somniguard_fsm_somniguard_normal_sleep_task",
+      "somniguard_layer_somniguard_fsm_somniguard_normal_state_str",
+      "somniguard_layer_somniguard_fsm_somniguard_power_off",
+      "somniguard_layer_somniguard_fsm_somniguard_sub_state_str",
+      "somniguard_layer_somniguard_fsm_somniguard_top_state_str",
+      "somniguard_normal_state_t",
+      "somniguard_sub_fsm_state_t",
+      "somniguard_top_fsm_state_t"
+    ],
+    "4": [
+      "app_app_init",
+      "app_app_process_action",
+      "app_cpp_app",
+      "app_h_app",
+      "main",
+      "main_main",
+      "max30102_driver_max30102_manager_h_max30102_driver_max30102_manager",
+      "max30102_driver_max30105_h_max30102_driver_max30105",
+      "max30102_driver_max30105_record",
+      "max30102_driver_max30105_record_green",
+      "max30102_driver_max30105_record_head",
+      "max30102_driver_max30105_record_ir",
+      "max30102_driver_max30105_record_red",
+      "max30102_driver_max30105_record_tail",
+      "max30102_driver_sensorcommand",
+      "other_driver_actuators_bsp_h_other_driver_actuators_bsp",
+      "somniguard_layer_global",
+      "somniguard_layer_somniguard_buffer_h_somniguard_layer_somniguard_buffer",
+      "somniguard_layer_somniguard_dsp_h_somniguard_layer_somniguard_dsp",
+      "somniguard_layer_somniguard_fsm_h_somniguard_layer_somniguard_fsm",
+      "somniguard_layer_somniguard_motion_h_somniguard_layer_somniguard_motion"
+    ],
+    "5": [
+      "sensor_hub_data_t",
+      "sensor_hub_sensor_hub_cpp_sensor_hub_sensor_hub",
+      "sensor_hub_sensor_hub_h_sensor_hub_sensor_hub",
+      "sensor_hub_sensor_hub_h_taskhandle_t",
+      "sensor_hub_sensor_hub_initimu",
+      "sensor_hub_sensor_hub_initmax30102",
+      "sensor_hub_sensor_hub_sensorhub",
+      "sensor_hub_sensor_hub_sensorhub_agcamplitudeled",
+      "sensor_hub_sensor_hub_sensorhub_getppgdata",
+      "sensor_hub_sensor_hub_sensorhub_getsensordata",
+      "sensor_hub_sensor_hub_sensorhub_initsensors",
+      "sensor_hub_sensor_hub_sensorhub_m_max30102",
+      "sensor_hub_sensor_hub_sensorhub_m_max30102taskhandle",
+      "sensor_hub_sensor_hub_sensorhub_max30102_freq",
+      "sensor_hub_sensor_hub_sensorhub_resetsensor",
+      "sensor_hub_sensor_hub_sensorhub_resumeinterrupttask",
+      "sensor_hub_sensor_hub_sensorhub_sensorhub",
+      "sensor_hub_sensor_hub_sensorhub_suspendinterrupttask"
+    ],
+    "6": [
+      "i2c_transferseq_typedef",
+      "other_driver_i2c_ctl_cpp_i2c_typedef",
+      "other_driver_i2c_ctl_cpp_other_driver_i2c_ctl",
+      "other_driver_i2c_ctl_h_i2c_typedef",
+      "other_driver_i2c_ctl_h_other_driver_i2c_ctl",
+      "other_driver_i2c_ctl_h_semaphorehandle_t",
+      "other_driver_i2c_ctl_i2cbus",
+      "other_driver_i2c_ctl_i2cbus_i2cbus",
+      "other_driver_i2c_ctl_i2cbus_m_i2c",
+      "other_driver_i2c_ctl_i2cbus_m_mutex",
+      "other_driver_i2c_ctl_i2cbus_read",
+      "other_driver_i2c_ctl_i2cbus_readregister8",
+      "other_driver_i2c_ctl_i2cbus_transfer",
+      "other_driver_i2c_ctl_i2cbus_write",
+      "other_driver_i2c_ctl_i2cbus_writeregister8"
+    ],
+    "7": [
+      "app_dataprocessingtask",
+      "somniguard_layer_somniguard_motion_cpp_somniguard_layer_somniguard_motion",
+      "somniguard_layer_somniguard_motion_cpp_somniguard_status_t",
+      "somniguard_layer_somniguard_motion_somniguard_motion_estimate_posture",
+      "somniguard_layer_somniguard_motion_somniguard_motion_init",
+      "somniguard_layer_somniguard_motion_somniguard_motion_process_buffer",
+      "somniguard_layer_somniguard_motion_somniguard_motion_process_sample",
+      "somniguard_layer_somniguard_motion_somniguard_motion_reset",
+      "somniguard_layer_somniguard_motion_somniguard_motion_set_sample_rate",
+      "somniguard_layer_somniguard_motion_somniguard_motion_set_threshold",
+      "somniguard_motion_result_t",
+      "somniguard_motion_t",
+      "somniguard_raw_imu_t"
+    ],
+    "8": [
+      "somniguard_dsp_result_t",
+      "somniguard_dsp_t",
+      "somniguard_layer_somniguard_dsp_apply_hampel_filter",
+      "somniguard_layer_somniguard_dsp_cpp_somniguard_layer_somniguard_dsp",
+      "somniguard_layer_somniguard_dsp_somniguard_dsp_calculate_spo2",
+      "somniguard_layer_somniguard_dsp_somniguard_dsp_init",
+      "somniguard_layer_somniguard_dsp_somniguard_dsp_process_sample",
+      "somniguard_layer_somniguard_dsp_somniguard_dsp_reset",
+      "somniguard_layer_somniguard_dsp_somniguard_dsp_update_bpm",
+      "somniguard_layer_somniguard_dsp_sort_array_ascend"
+    ],
+    "9": [
+      "somniguard_layer_somniguard_buffer_cpp_somniguard_buffer_t",
+      "somniguard_layer_somniguard_buffer_cpp_somniguard_layer_somniguard_buffer",
+      "somniguard_layer_somniguard_buffer_cpp_somniguard_status_t",
+      "somniguard_layer_somniguard_buffer_somniguard_buffer_get_latest",
+      "somniguard_layer_somniguard_buffer_somniguard_buffer_get_ordered_tensor",
+      "somniguard_layer_somniguard_buffer_somniguard_buffer_init",
+      "somniguard_layer_somniguard_buffer_somniguard_buffer_push_50hz",
+      "somniguard_layer_somniguard_buffer_somniguard_buffer_reset",
+      "somniguard_layer_somniguard_buffer_somniguard_buffer_update_1hz_metrics",
+      "somniguard_tensor_frame_t"
+    ],
+    "10": [
+      "other_driver_actuators_bsp_actuators_bsp_init",
+      "other_driver_actuators_bsp_actuators_set_buzzer",
+      "other_driver_actuators_bsp_actuators_set_rgb_led",
+      "other_driver_actuators_bsp_cpp_other_driver_actuators_bsp",
+      "other_driver_actuators_bsp_somniguard_ble_control",
+      "other_driver_actuators_bsp_somniguard_led_display"
+    ],
+    "11": [
+      "srcpython_read_log",
+      "srcpython_read_log_list_com_ports",
+      "srcpython_read_log_on_close",
+      "srcpython_read_log_read_from_chip",
+      "srcpython_read_log_update_plot"
+    ],
+    "12": [
+      "srcpython_plot_data",
+      "srcpython_plot_data_monitor_and_plot",
+      "srcpython_plot_data_parse_line",
+      "srcpython_plot_data_rationale_22"
+    ],
+    "13": [
+      "sl_bt_msg_t",
+      "sl_gatt_service_device_information_override",
+      "sl_gatt_service_device_information_override_sl_gatt_service_device_information_override_on_event"
+    ],
+    "14": [
+      "config_sl_bgapi_config",
+      "config_sl_bluetooth_config"
+    ],
+    "15": [
+      "config_sl_bt_rtos_config",
+      "config_sl_bt_rtos_config_s2"
+    ],
+    "16": [
+      "config_sl_mbedtls_config",
+      "config_sl_mbedtls_device_config"
+    ],
+    "17": [
+      "srcpython_monitor",
+      "srcpython_monitor_monitor_board"
+    ],
+    "18": [
+      "srcpython_plot_drift",
+      "srcpython_plot_drift_monitor_and_plot"
+    ],
+    "19": [
+      "config_app_assert_config"
+    ],
+    "20": [
+      "config_freertosconfig"
+    ],
+    "21": [
+      "config_pin_config"
+    ],
+    "22": [
+      "config_psa_crypto_config"
+    ],
+    "23": [
+      "config_sl_bluetooth_common_config"
+    ],
+    "24": [
+      "config_sl_board_control_config"
+    ],
+    "25": [
+      "config_sl_btctrl_config"
+    ],
+    "26": [
+      "config_sl_btctrl_scheduler_priority_config"
+    ],
+    "27": [
+      "config_sl_clock_manager_oscillator_config"
+    ],
+    "28": [
+      "config_sl_clock_manager_tree_config"
+    ],
+    "29": [
+      "config_sl_core_config"
+    ],
+    "30": [
+      "config_sl_debug_swo_config"
+    ],
+    "31": [
+      "config_sl_device_init_dcdc_config"
+    ],
+    "32": [
+      "config_sl_device_init_emu_config"
+    ],
+    "33": [
+      "config_sl_hfxo_manager_config"
+    ],
+    "34": [
+      "config_sl_i2c_sensor_config"
+    ],
+    "35": [
+      "config_sl_iostream_eusart_vcom_config"
+    ],
+    "36": [
+      "config_sl_main_start_task_config"
+    ],
+    "37": [
+      "config_sl_memory_manager_config"
+    ],
+    "38": [
+      "config_sl_memory_manager_region_config"
+    ],
+    "39": [
+      "config_sl_mx25_flash_shutdown_eusart_config"
+    ],
+    "40": [
+      "config_sl_power_manager_config"
+    ],
+    "41": [
+      "config_sl_rail_util_pa_config"
+    ],
+    "42": [
+      "config_sl_rail_util_pa_tables_config"
+    ],
+    "43": [
+      "config_sl_rail_util_power_manager_init_config"
+    ],
+    "44": [
+      "config_sl_rail_util_sequencer_config"
+    ],
+    "45": [
+      "config_sl_sleeptimer_config"
+    ],
+    "46": [
+      "config_sl_uartdrv_eusart_vcom_config"
+    ],
+    "47": [
+      "config_uartdrv_config"
+    ],
+    "48": [
+      "imu_driver_constants"
+    ]
+  },
+  "cohesion": {
+    "0": 0.07316118935837246,
+    "1": 0.09743589743589744,
+    "2": 0.07661290322580645,
+    "3": 0.15517241379310345,
+    "4": 0.12857142857142856,
+    "5": 0.19607843137254902,
+    "6": 0.21904761904761905,
+    "7": 0.32051282051282054,
+    "8": 0.4444444444444444,
+    "9": 0.4,
+    "10": 0.6,
+    "11": 0.4,
+    "12": 0.5,
+    "13": 0.6666666666666666,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0,
+    "26": 1.0,
+    "27": 1.0,
+    "28": 1.0,
+    "29": 1.0,
+    "30": 1.0,
+    "31": 1.0,
+    "32": 1.0,
+    "33": 1.0,
+    "34": 1.0,
+    "35": 1.0,
+    "36": 1.0,
+    "37": 1.0,
+    "38": 1.0,
+    "39": 1.0,
+    "40": 1.0,
+    "41": 1.0,
+    "42": 1.0,
+    "43": 1.0,
+    "44": 1.0,
+    "45": 1.0,
+    "46": 1.0,
+    "47": 1.0,
+    "48": 1.0
+  },
+  "gods": [
+    {
+      "id": "max30102_driver_max30105_max30105",
+      "label": "MAX30105",
+      "degree": 72
+    },
+    {
+      "id": "max30102_driver_max30102_manager_max30102_manager",
+      "label": "MAX30102_manager",
+      "degree": 39
+    },
+    {
+      "id": "max30102_driver_max30105_max30105_bitmask",
+      "label": "bitMask",
+      "degree": 24
+    },
+    {
+      "id": "imu_driver_imu_imu",
+      "label": "IMU",
+      "degree": 22
+    },
+    {
+      "id": "sensor_hub_sensor_hub_sensorhub",
+      "label": "SensorHub",
+      "degree": 16
+    },
+    {
+      "id": "max30102_driver_max30105_max30105_readregister8",
+      "label": "readRegister8",
+      "degree": 14
+    },
+    {
+      "id": "max30102_driver_max30102_manager_max30102_manager_sendcommand",
+      "label": "sendCommand",
+      "degree": 13
+    },
+    {
+      "id": "other_driver_i2c_ctl_i2cbus",
+      "label": "I2CBus",
+      "degree": 13
+    },
+    {
+      "id": "max30102_driver_max30105_max30105_writeregister8",
+      "label": "writeRegister8",
+      "degree": 11
+    },
+    {
+      "id": "somniguard_layer_somniguard_fsm_somniguard_fsm_init",
+      "label": "somniguard_fsm_init()",
+      "degree": 9
+    }
+  ],
+  "surprises": [
+    {
+      "source": "DataProcessingTask()",
+      "target": "somniguard_buffer_push_50hz()",
+      "source_files": [
+        "app.cpp",
+        "somniguard_layer/somniguard_buffer.cpp"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "DataProcessingTask()",
+      "target": "somniguard_dsp_process_sample()",
+      "source_files": [
+        "app.cpp",
+        "somniguard_layer/somniguard_dsp.cpp"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "app_init()",
+      "target": "somniguard_fsm_init()",
+      "source_files": [
+        "app.cpp",
+        "somniguard_layer/somniguard_fsm.cpp"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "MAX30102TaskINT()",
+      "target": "init_MAX30102_Interrupt()",
+      "source_files": [
+        "sensor_hub/sensor_hub.cpp",
+        "MAX30102_driver/MAX30102_manager.cpp"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "initMax30102()",
+      "target": "MAX30102_manager",
+      "source_files": [
+        "sensor_hub/sensor_hub.cpp",
+        "MAX30102_driver/MAX30102_manager.h"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "references",
+      "why": "connects across different repos/directories; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

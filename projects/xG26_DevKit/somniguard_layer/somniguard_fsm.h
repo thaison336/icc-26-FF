@@ -13,6 +13,10 @@
  */
 
 #include "global.h"
+
+#include "em_emu.h"
+#include "em_gpio.h"
+
 #include "somniguard_buffer.h"
 #include "somniguard_dsp.h"
 #include "somniguard_motion.h"
@@ -31,8 +35,8 @@ extern "C"
 #define FSM_EVALUATE_TIMEOUT_MS (10000UL)   // 10 giây đánh giá phục hồi sau can thiệp
 
 /* Ngưỡng phát hiện bất thường trong NORMAL_SLEEP */
-#define FSM_SPO2_CRITICAL_THRESHOLD 93.0f   // Ngưỡng 1: SpO2 < 93% -> DEEP_ANALYSIS ngay
-#define FSM_ANOMALY_SUSTAIN_MS (10000UL)    // Ngưỡng 2: SpO2 drop >= 4% kéo dài 10s -> DEEP_ANALYSIS
+#define FSM_SPO2_CRITICAL_THRESHOLD 93.0f // Ngưỡng 1: SpO2 < 93% -> DEEP_ANALYSIS ngay
+#define FSM_ANOMALY_SUSTAIN_MS (10000UL)  // Ngưỡng 2: SpO2 drop >= 4% kéo dài 10s -> DEEP_ANALYSIS
 
     /**
      * @brief Cấu trúc quản lý toàn bộ trạng thái FSM 2 Tầng và các cờ điều khiển ngoại vi
@@ -79,9 +83,9 @@ extern "C"
         bool sleep_buffering_entry_done; // Đã config sensor khi vào SUB_SLEEP_BUFFERING
 
         /* Biến theo dõi bất thường trong SUB_SLEEP_MONITORING */
-        float    spo2_baseline;      // SpO2 baseline khi bắt đầu MONITORING (để phát hiện drop tương đối)
-        uint32_t anomaly_detect_ms;  // Thời điểm bắt đầu đếm bất thường bền vững (0 = chưa phát hiện)
-        bool     anomaly_sustained;  // Cờ: đang trong giai đoạn đếm bất thường bền vững
+        float spo2_baseline;        // SpO2 baseline khi bắt đầu MONITORING (để phát hiện drop tương đối)
+        uint32_t anomaly_detect_ms; // Thời điểm bắt đầu đếm bất thường bền vững (0 = chưa phát hiện)
+        bool anomaly_sustained;     // Cờ: đang trong giai đoạn đếm bất thường bền vững
     } somniguard_fsm_t;
 
     /**
@@ -160,6 +164,11 @@ extern "C"
     const char *somniguard_active_state_str(somniguard_active_state_t state);
     const char *somniguard_normal_state_str(somniguard_normal_state_t state);
     const char *somniguard_ai_event_str(somniguard_ai_event_t event);
+
+    /**
+     *  @brief các function hỗ trợ EMU
+     */
+    void somniguard_enter_em4_shutoff(somniguard_fsm_t *fsm);
 
 #ifdef __cplusplus
 }

@@ -30,6 +30,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include "sl_status.h"
 #include "gatt_db.h"
 #include "app_assert.h"
@@ -166,11 +167,73 @@ void sl_gatt_service_device_information_override_on_event(sl_bt_msg_t *evt)
 #else
 // Skip setting System ID.
 // Check the presence of this characteristic and the ID reference in the GATT
-// Configurator.
-#endif
+#include "other_driver/ble_notification_manager.h"
+
+static uint8_t s_advertising_set_handle = 0xFF;
+
+      // Khởi tạo và bắt đầu phát sóng BLE Advertising (chứa tên 'gigf')
+      sc = sl_bt_advertiser_create_set(&s_advertising_set_handle);
+      if (sc == SL_STATUS_OK) {
+        sl_bt_legacy_advertiser_generate_data(s_advertising_set_handle, sl_bt_legacy_advertiser_general_discoverable);
+        sl_bt_legacy_advertiser_start(s_advertising_set_handle, sl_bt_legacy_advertiser_connectable_scannable);
+      }
+      break;
+
+    case sl_bt_evt_gatt_server_characteristic_status_id:
+    {
+      uint8_t conn = evt->data.evt_gatt_server_characteristic_status.connection;
+      uint16_t config_flags = evt->data.evt_gatt_server_characteristic_status.client_config_flags;
+      // client_config_flags > 0 nghĩa là đã bật Notify (0x0001) hoặc Indicate (0x0002)
+      bool is_sub = (config_flags > 0);
+      somniguard_ble_set_subscribed(conn, is_sub);
+      break;
+    }
+
+    case sl_bt_evt_connection_closed_id:
+      somniguard_ble_set_subscribed(0xFF, false);
+      // Tự động phát sóng lại sau khi ngắt kết nối
+      if (s_advertising_set_handle != 0xFF) {
+        sl_bt_legacy_advertiser_generate_data(s_advertising_set_handle, sl_bt_legacy_advertiser_general_discoverable);
+        sl_bt_legacy_advertiser_start(s_advertising_set_handle, sl_bt_legacy_advertiser_connectable_scannable);
+      }
       break;
 
     default:
       break;
   }
 }
+
+/**************************************************************************//**
+ * Bluetooth Stack Central Event Callback (Silicon Labs SDK)
+ *****************************************************************************/
+void sl_bt_on_event(sl_bt_msg_t *evt)
+{
+    // 1. Chạy handler cấu hình thông tin thiết bị & GATT Advertising
+    sl_gatt_service_device_information_override_on_event(evt);
+
+    // 2. In log UART Console để theo dõi trực tiếp trạng thái BLE của DevKit
+    switch (SL_BT_MSG_ID(evt->header)) {
+        case sl_bt_evt_system_boot_id:
+            printf("\r\n=======================================================\r\n");
+            printf("[BLE STACK] >>> Bluetooth Stack Booted Successfully! <<<\r\n");
+            printf("[BLE STACK] BLE Device Name: 'gigf'\r\n");
+            printf("[BLE STACK] Status: Advertising is ACTIVE over the air.\r\n");
+            printf("=======================================================\r\n\r\n");
+            break;
+
+        case sl_bt_evt_connection_opened_id:
+            printf("\r\n[BLE STACK] >>> MOBILE APP CONNECTED! (Conn ID: %d) <<<\r\n\r\n",
+                   (int)evt->data.evt_connection_opened.connection);
+            break;
+
+        case sl_bt_evt_connection_closed_id:
+            printf("\r\n[BLE STACK] >>> MOBILE APP DISCONNECTED! (Reason: 0x%04X) <<<\r\n",
+                   (unsigned int)evt->data.evt_connection_closed.reason);
+            printf("[BLE STACK] Restarting BLE Advertising for 'gigf'...\r\n\r\n");
+            break;
+
+        default:
+            break;
+    }
+}
+

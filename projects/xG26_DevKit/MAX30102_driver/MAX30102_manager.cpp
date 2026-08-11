@@ -269,6 +269,7 @@ void MAX30102_manager::task()
 
                 m_sensor.setPulseAmplitudeRed(cmd.value);
                 m_sensor.clearFIFO();
+                m_sensor.Max30102_setSampleRate(50);
                 m_sensor.clearDataBuffer();
                 break;
 
@@ -276,6 +277,7 @@ void MAX30102_manager::task()
 
                 m_sensor.setPulseAmplitudeIR(cmd.value);
                 m_sensor.clearFIFO();
+                m_sensor.Max30102_setSampleRate(50);
                 m_sensor.clearDataBuffer();
                 break;
 
@@ -289,6 +291,7 @@ void MAX30102_manager::task()
 
                 m_sensor.setADCRange(cmd.value);
                 m_sensor.clearFIFO();
+                m_sensor.Max30102_setSampleRate(50);
                 m_sensor.clearDataBuffer();
 
                 break;
@@ -297,19 +300,17 @@ void MAX30102_manager::task()
 
                 m_sensor.setPulseWidth(cmd.value);
                 m_sensor.clearFIFO();
+                m_sensor.Max30102_setSampleRate(50);
                 m_sensor.clearDataBuffer();
                 break;
 
             case SENSOR_CMD_CLEAR_FIFO:
 
                 m_sensor.clearFIFO();
+                m_sensor.Max30102_setSampleRate(50);
                 m_sensor.clearDataBuffer();
                 m_sensor.clearFIFO();
-
-                // printf("After clear: RP=%u WP=%u OVF=%u\r\n",
-                //        m_sensor.getReadPointer(),
-                //        m_sensor.getWritePointer(),
-                //        m_sensor.getOverflowCounter());
+                m_sensor.Max30102_setSampleRate(50);
 
                 break;
 

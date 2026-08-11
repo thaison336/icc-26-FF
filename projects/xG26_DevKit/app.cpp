@@ -36,6 +36,7 @@
 #include "somniguard_layer/somniguard_dsp.h"
 #include "somniguard_layer/somniguard_buffer.h"
 #include "somniguard_layer/somniguard_fsm.h"
+#include "other_driver/ble_notification_manager.h"
 
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
@@ -55,7 +56,7 @@ void DataProcessingTask(void *pvParameters)
             uint32_t timestamp_ms = pdTICKS_TO_MS(xTaskGetTickCount());
             ac_ir_buf[idx] = (float)data.ppg_ir;
             idx = (idx + 1) % FEATURE_RATE_IR_AC_HZ;
-            // printf("Raw IR: %lu, Raw Red: %lu", data.ppg_red, data.ppg_ir);
+
             // 2. Chạy thuật toán DSP tính SpO2 & BPM
             bool has_new_stride = somniguard_dsp_process_sample(
                 &fsm->dsp_pro,
@@ -87,6 +88,7 @@ void DataProcessingTask(void *pvParameters)
                     fsm->dsp_res.heart_rate,
                     ac_ir_buf,
                     fsm->motion_res.motion_energy);
+                // printf("Raw IR: %lu, Raw Red: %lu", data.ppg_red, data.ppg_ir);
             }
         }
 
@@ -194,6 +196,9 @@ void app_init(void)
 {
     printf("========== APP INIT FSM RUN START ==========\r\n");
 
+    // Khởi tạo BLE Notification Manager
+    somniguard_ble_manager_init();
+
     // // 0. Tạo Task LED Blinky ĐẦU TIÊN để đảm bảo đèn luôn nhấp nháy ngay cả khi cảm biến bị lỗi
     // xTaskCreate(
     //     LedBlinkyTask,
@@ -215,7 +220,7 @@ void app_init(void)
 
     // Chạy AGC calibration trước khi tạo FSM tasks
     // (Đảm bảo AGC hoàn thành 100% không bị race condition với FSM)
-    // mySensorHub.agcAmplitudeLed();
+    mySensorHub.agcAmplitudeLed();
 
     // Khởi tạo Bộ Não FSM
     somniguard_fsm_init(&myFSM, &mySensorHub);

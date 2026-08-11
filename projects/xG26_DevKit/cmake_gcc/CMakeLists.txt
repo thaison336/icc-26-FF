@@ -23,6 +23,7 @@ add_executable(xG26_Devkit
     ../somniguard_layer/somniguard_motion.cpp
     ../somniguard_layer/somniguard_buffer.cpp
     ../somniguard_layer/somniguard_fsm.cpp
+    ../other_driver/ble_notification_manager.cpp
     ../other_driver/actuators_bsp.cpp
     
  
