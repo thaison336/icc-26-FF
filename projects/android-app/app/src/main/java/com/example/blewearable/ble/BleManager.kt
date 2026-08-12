@@ -228,31 +228,40 @@ class BleManager(private val context: Context) {
     private fun processIncomingBytes(bytes: ByteArray) {
         if (bytes.isEmpty()) return
         val rawStr = bytes.joinToString(" ") { String.format("%02X", it) }
-        val asciiStr = String(bytes).trim()
+        var asciiStr = String(bytes).trim()
 
-        // Parse numerical value from string or direct payload
-        val numericValue: Float = asciiStr.toFloatOrNull()
-            ?: try {
-                if (bytes.size >= 4) {
-                    java.nio.ByteBuffer.wrap(bytes).float
-                } else if (bytes.size == 2) {
-                    ((bytes[0].toInt() and 0xFF) or ((bytes[1].toInt() and 0xFF) shl 8)).toFloat()
-                } else {
-                    (bytes[0].toInt() and 0xFF).toFloat()
-                }
-            } catch (e: Exception) {
-                0f
+        // If 12-byte binary telemetry packet format from SomniGuard xG26 DevKit:
+        // [0..1]: seq_num, [2..3]: spo2_x100, [4..5]: hr_x10, [6..7]: motion_mg, [8]: posture, [9]: top_fsm, [10]: sub_fsm, [11]: bat
+        var numericValue: Float = 0f
+
+        if (bytes.size == 12) {
+            val spo2Raw = (bytes[2].toInt() and 0xFF) or ((bytes[3].toInt() and 0xFF) shl 8)
+            val hrRaw   = (bytes[4].toInt() and 0xFF) or ((bytes[5].toInt() and 0xFF) shl 8)
+            val postureFlags = bytes[8].toInt() and 0xFF
+            val isFingerAttached = (postureFlags and (1 shl 3)) != 0
+
+            if (isFingerAttached) {
+                val spo2Val = spo2Raw / 100.0f
+                val hrVal   = hrRaw / 10.0f
+                numericValue = hrVal
+                asciiStr = String.format("SpO2:%.1f%% BPM:%.0f", spo2Val, hrVal)
+            } else {
+                numericValue = 0f
+                asciiStr = "NO FINGER"
             }
+        } else {
+            numericValue = asciiStr.toFloatOrNull() ?: 0f
+        }
 
-        // Check if payload represents emergency trigger
-        val isEmergency = asciiStr.contains("SOS", ignoreCase = true) ||
+        // Check if payload represents explicit emergency trigger (ONLY triggered by explicit "SOS" string)
+        val isEmergency = asciiStr.equals("SOS", ignoreCase = true) ||
+                asciiStr.startsWith("SOS", ignoreCase = true) ||
                 asciiStr.contains("EMERGENCY", ignoreCase = true) ||
                 asciiStr.contains("HELP", ignoreCase = true) ||
-                bytes.any { (it.toInt() and 0xFF) == 0xFF } ||
                 numericValue == -999f
 
         if (isEmergency) {
-            Log.w("BleManager", "Emergency payload detected in BLE stream!")
+            Log.w("BleManager", "Emergency SOS payload detected in BLE stream!")
             emergencyDispatcher.triggerEmergency("Wearable SOS Button Pressed ($asciiStr)")
         }
 

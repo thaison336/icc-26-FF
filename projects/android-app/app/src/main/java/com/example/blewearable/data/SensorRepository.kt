@@ -46,4 +46,38 @@ class SensorRepository(private val dao: SensorDataDao) {
             )
         }
     }
+
+    suspend fun exportDataAsCsv(): String {
+        val readings = dao.getAllReadings()
+        val sb = StringBuilder()
+        sb.append("ID,Timestamp,DateTime,DeviceName,Value,RawPayload\n")
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
+        readings.forEach { r ->
+            val dateStr = sdf.format(Date(r.timestamp))
+            val escapedPayload = r.rawPayload.replace("\"", "\"\"")
+            sb.append("${r.id},${r.timestamp},\"$dateStr\",\"${r.deviceName}\",${r.value},\"$escapedPayload\"\n")
+        }
+        return sb.toString()
+    }
+
+    suspend fun exportDataAsJson(): String {
+        val readings = dao.getAllReadings()
+        val sb = StringBuilder()
+        sb.append("[\n")
+        val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+        readings.forEachIndexed { index, r ->
+            val dateStr = sdf.format(Date(r.timestamp))
+            sb.append("  {\n")
+            sb.append("    \"id\": ${r.id},\n")
+            sb.append("    \"timestamp\": ${r.timestamp},\n")
+            sb.append("    \"dateTime\": \"$dateStr\",\n")
+            sb.append("    \"deviceName\": \"${r.deviceName}\",\n")
+            sb.append("    \"value\": ${r.value},\n")
+            sb.append("    \"rawPayload\": \"${r.rawPayload.replace("\"", "\\\"")}\"\n")
+            sb.append("  }${if (index < readings.size - 1) "," else ""}\n")
+        }
+        sb.append("]")
+        return sb.toString()
+    }
 }

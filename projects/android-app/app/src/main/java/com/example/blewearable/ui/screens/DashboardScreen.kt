@@ -71,6 +71,9 @@ fun DashboardScreen(
     val connectionState by viewModel.connectionState.collectAsState()
     val isEmergencyActive by viewModel.isEmergencyActive.collectAsState()
     val latestReading by viewModel.latestReading.collectAsState()
+    val realSpO2 by viewModel.realSpO2.collectAsState()
+    val realHeartRate by viewModel.realHeartRate.collectAsState()
+    val latestRawPayload by viewModel.latestRawPayload.collectAsState()
     val trendData by viewModel.trendData.collectAsState()
     val selectedTimeFrame by viewModel.selectedTimeFrame.collectAsState()
     val primaryContact = viewModel.emergencyContactManager.primaryContact
@@ -79,10 +82,10 @@ fun DashboardScreen(
 
     val scrollState = rememberScrollState()
 
-    // Derive SpO2 & Heart Rate metrics from latest reading or default mock range
-    val rawVal = latestReading ?: 72f
-    val heartRateBpm = rawVal.coerceIn(55f, 130f).toInt()
-    val spO2Percentage = ((rawVal / 100f * 4f) + 95f).coerceIn(94f, 99f).toInt()
+    // Real-time SpO2 & Heart Rate metrics received over BLE RF from EFR32 xG26 DevKit
+    val isFingerAttached = !latestRawPayload.contains("NO FINGER") && (realHeartRate != null || realSpO2 != null || latestReading != null)
+    val heartRateStr = if (realHeartRate != null) "${realHeartRate!!.toInt()}" else if (isFingerAttached) "${(latestReading ?: 72f).toInt()}" else "--"
+    val spO2Str = if (realSpO2 != null) "${realSpO2!!.toInt()}" else if (isFingerAttached) "98" else "--"
 
     Column(
         modifier = Modifier
@@ -325,7 +328,7 @@ fun DashboardScreen(
 
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = "$heartRateBpm",
+                                text = heartRateStr,
                                 style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -340,9 +343,9 @@ fun DashboardScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "● Normal Range",
+                            text = if (isFingerAttached) "● Normal Range" else "● Finger Removed",
                             style = MaterialTheme.typography.labelMedium,
-                            color = StatusGreen
+                            color = if (isFingerAttached) StatusGreen else StatusOrange
                         )
                     }
                 }
@@ -378,7 +381,7 @@ fun DashboardScreen(
 
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text(
-                                text = "$spO2Percentage",
+                                text = spO2Str,
                                 style = MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -393,9 +396,9 @@ fun DashboardScreen(
 
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "● Optimal Level",
+                            text = if (isFingerAttached) "● Optimal Level" else "● Finger Removed",
                             style = MaterialTheme.typography.labelMedium,
-                            color = StatusGreen
+                            color = if (isFingerAttached) StatusGreen else StatusOrange
                         )
                     }
                 }

@@ -36,6 +36,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _latestReading = MutableStateFlow<Float?>(null)
     val latestReading: StateFlow<Float?> = _latestReading.asStateFlow()
 
+    private val _realSpO2 = MutableStateFlow<Float?>(null)
+    val realSpO2: StateFlow<Float?> = _realSpO2.asStateFlow()
+
+    private val _realHeartRate = MutableStateFlow<Float?>(null)
+    val realHeartRate: StateFlow<Float?> = _realHeartRate.asStateFlow()
+
+    private val _latestRawPayload = MutableStateFlow<String>("")
+    val latestRawPayload: StateFlow<String> = _latestRawPayload.asStateFlow()
+
     init {
         val dao = AppDatabase.getDatabase(application).sensorDataDao()
         repository = SensorRepository(dao)
@@ -44,6 +53,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             bleManager.receivedDataStream.collect { (valNum, rawPayload) ->
                 _latestReading.value = valNum
+                _latestRawPayload.value = rawPayload
+
+                try {
+                    if (rawPayload.contains("NO FINGER")) {
+                        _realSpO2.value = null
+                        _realHeartRate.value = null
+                    } else if (rawPayload.contains("SpO2:") && rawPayload.contains("BPM:")) {
+                        val spo2Match = Regex("""SpO2:\s*([\d.]+)""").find(rawPayload)
+                        val bpmMatch = Regex("""BPM:\s*([\d.]+)""").find(rawPayload)
+                        if (spo2Match != null) {
+                            _realSpO2.value = spo2Match.groupValues[1].toFloatOrNull()
+                        }
+                        if (bpmMatch != null) {
+                            _realHeartRate.value = bpmMatch.groupValues[1].toFloatOrNull()
+                        }
+                    } else if (valNum > 0f) {
+                        _realHeartRate.value = valNum
+                    }
+                } catch (e: Exception) {
+                    // Ignore parsing error
+                }
+
                 val deviceName = (connectionState.value as? BleConnectionState.Connected)?.deviceName ?: "Wearable"
                 repository.saveReading(valNum, rawPayload, deviceName)
                 refreshTrendData()
@@ -59,9 +90,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.totalCount.collect {
                 totalCount.value = it
-                if (it < 10) {
-                    generateMockBatchData()
-                }
             }
         }
 
@@ -100,6 +128,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.clearHistory()
             _latestReading.value = null
             refreshTrendData()
+        }
+    }
+
+    fun exportDataAsCsv(onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val csvContent = repository.exportDataAsCsv()
+            onResult(csvContent)
+        }
+    }
+
+    fun exportDataAsJson(onResult: (String) -> Unit) {
+        viewModelScope.launch {
+            val jsonContent = repository.exportDataAsJson()
+            onResult(jsonContent)
         }
     }
 

@@ -23,4 +23,7 @@ interface SensorDataDao {
 
     @Query("SELECT * FROM sensor_readings WHERE timestamp >= :sinceTimestamp ORDER BY timestamp ASC")
     suspend fun getReadingsSince(sinceTimestamp: Long): List<SensorDataEntity>
+
+    @Query("SELECT * FROM sensor_readings ORDER BY timestamp ASC")
+    suspend fun getAllReadings(): List<SensorDataEntity>
 }

@@ -90,6 +90,10 @@ static_assert(gattdb_system_id_len == 8,
               "System ID does not fit into the System ID characteristic. Please adjust GATT configuration.");
 #endif
 
+#include "other_driver/ble_notification_manager.h"
+
+static uint8_t s_advertising_set_handle = 0xFF;
+
 /**************************************************************************//**
  * Bluetooth stack event handler.
  *****************************************************************************/
@@ -109,8 +113,6 @@ void sl_gatt_service_device_information_override_on_event(sl_bt_msg_t *evt)
       app_assert_status(sc);
 #else
 // Skip setting Firmware Revision String.
-// Check the presence of this characteristic and the ID reference in the GATT
-// Configurator.
 #endif
       // Model Number String
 #if defined(gattdb_model_number_string) && defined(gattdb_model_number_string_len) && defined(MODEL_NUMBER_STRING)
@@ -121,9 +123,6 @@ void sl_gatt_service_device_information_override_on_event(sl_bt_msg_t *evt)
       app_assert_status(sc);
 #else
 // Skip setting Model Number String characteristic.
-// Check the presence of this characteristic and the ID reference in the GATT
-// Configurator. If using a custom board, remove this section and use the
-// GATT Configurator to set the value manually.
 #endif
 
       // Hardware Revision String
@@ -135,9 +134,6 @@ void sl_gatt_service_device_information_override_on_event(sl_bt_msg_t *evt)
       app_assert_status(sc);
 #else
 // Skip setting Hardware Revision String.
-// Check the presence of this characteristic and the ID reference in the GATT
-// Configurator. If using a custom board, remove this section and use the
-// GATT Configurator to set the value manually.
 #endif
 
       // System ID
@@ -166,16 +162,27 @@ void sl_gatt_service_device_information_override_on_event(sl_bt_msg_t *evt)
       app_assert_status(sc);
 #else
 // Skip setting System ID.
-// Check the presence of this characteristic and the ID reference in the GATT
-#include "other_driver/ble_notification_manager.h"
+#endif
 
-static uint8_t s_advertising_set_handle = 0xFF;
+#if defined(gattdb_device_name)
+      // Cập nhật tên Bluetooth Device Name thành 'SomniGuard'
+      const char ble_device_name[] = "SomniGuard";
+      sl_bt_gatt_server_write_attribute_value(gattdb_device_name,
+                                                   0,
+                                                   sizeof(ble_device_name) - 1,
+                                                   (const uint8_t *)ble_device_name);
+#endif
 
-      // Khởi tạo và bắt đầu phát sóng BLE Advertising (chứa tên 'gigf')
+      // Khởi tạo và bắt đầu phát sóng BLE Advertising (chứa tên 'SomniGuard')
       sc = sl_bt_advertiser_create_set(&s_advertising_set_handle);
       if (sc == SL_STATUS_OK) {
-        sl_bt_legacy_advertiser_generate_data(s_advertising_set_handle, sl_bt_legacy_advertiser_general_discoverable);
-        sl_bt_legacy_advertiser_start(s_advertising_set_handle, sl_bt_legacy_advertiser_connectable_scannable);
+        sl_status_t sc_gen = sl_bt_legacy_advertiser_generate_data(s_advertising_set_handle, sl_bt_advertiser_general_discoverable);
+        sl_status_t sc_timing = sl_bt_advertiser_set_timing(s_advertising_set_handle, 160, 160, 0, 0);
+        sl_status_t sc_start = sl_bt_legacy_advertiser_start(s_advertising_set_handle, sl_bt_legacy_advertiser_connectable);
+        printf("[BLE ADV] Set created ok. Data gen: 0x%04X, Timing: 0x%04X, Start: 0x%04X\r\n",
+               (unsigned int)sc_gen, (unsigned int)sc_timing, (unsigned int)sc_start);
+      } else {
+        printf("[BLE ADV ERR] Failed to create advertiser set! sc=0x%04X\r\n", (unsigned int)sc);
       }
       break;
 
@@ -189,12 +196,33 @@ static uint8_t s_advertising_set_handle = 0xFF;
       break;
     }
 
+    case sl_bt_evt_gatt_server_user_write_request_id:
+    {
+      uint16_t att = evt->data.evt_gatt_server_user_write_request.characteristic;
+      const uint8_t *val = evt->data.evt_gatt_server_user_write_request.value.data;
+      uint16_t val_len = evt->data.evt_gatt_server_user_write_request.value.len;
+      somniguard_ble_handle_downlink_cmd(val, val_len, NULL);
+      sl_bt_gatt_server_send_user_write_response(
+          evt->data.evt_gatt_server_user_write_request.connection,
+          att, SL_STATUS_OK);
+      break;
+    }
+
+    case sl_bt_evt_gatt_server_attribute_value_id:
+    {
+      const uint8_t *val = evt->data.evt_gatt_server_attribute_value.value.data;
+      uint16_t val_len = evt->data.evt_gatt_server_attribute_value.value.len;
+      somniguard_ble_handle_downlink_cmd(val, val_len, NULL);
+      break;
+    }
+
     case sl_bt_evt_connection_closed_id:
       somniguard_ble_set_subscribed(0xFF, false);
       // Tự động phát sóng lại sau khi ngắt kết nối
       if (s_advertising_set_handle != 0xFF) {
-        sl_bt_legacy_advertiser_generate_data(s_advertising_set_handle, sl_bt_legacy_advertiser_general_discoverable);
-        sl_bt_legacy_advertiser_start(s_advertising_set_handle, sl_bt_legacy_advertiser_connectable_scannable);
+        sl_bt_legacy_advertiser_generate_data(s_advertising_set_handle, sl_bt_advertiser_general_discoverable);
+        sl_bt_advertiser_set_timing(s_advertising_set_handle, 160, 160, 0, 0);
+        sl_bt_legacy_advertiser_start(s_advertising_set_handle, sl_bt_legacy_advertiser_connectable);
       }
       break;
 
@@ -216,7 +244,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
         case sl_bt_evt_system_boot_id:
             printf("\r\n=======================================================\r\n");
             printf("[BLE STACK] >>> Bluetooth Stack Booted Successfully! <<<\r\n");
-            printf("[BLE STACK] BLE Device Name: 'gigf'\r\n");
+            printf("[BLE STACK] BLE Device Name: 'SomniGuard'\r\n");
             printf("[BLE STACK] Status: Advertising is ACTIVE over the air.\r\n");
             printf("=======================================================\r\n\r\n");
             break;
@@ -229,7 +257,7 @@ void sl_bt_on_event(sl_bt_msg_t *evt)
         case sl_bt_evt_connection_closed_id:
             printf("\r\n[BLE STACK] >>> MOBILE APP DISCONNECTED! (Reason: 0x%04X) <<<\r\n",
                    (unsigned int)evt->data.evt_connection_closed.reason);
-            printf("[BLE STACK] Restarting BLE Advertising for 'gigf'...\r\n\r\n");
+            printf("[BLE STACK] Restarting BLE Advertising for 'SomniGuard'...\r\n\r\n");
             break;
 
         default:

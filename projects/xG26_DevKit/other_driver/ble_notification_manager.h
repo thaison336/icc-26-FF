@@ -50,6 +50,18 @@ typedef struct {
     uint16_t param1;      // Thông số kèm theo 1 (SpO2 %, Battery %, etc.)
     uint16_t param2;      // Thông số kèm theo 2 (Heart Rate bpm, FSM State, etc.)
 } somniguard_ble_event_pkt_t;
+
+/* Gói tin Telemetry Binary 12 bytes */
+typedef struct {
+    uint16_t seq_num;        // Số thứ tự chuỗi dữ liệu (1..65535)
+    uint16_t spo2_x100;      // SpO2 x 100 (VD: 9650 = 96.50%)
+    uint16_t hr_x10;         // BPM x 10 (VD: 720 = 72.0 BPM)
+    uint16_t motion_mg;      // Motion energy milli-g
+    uint8_t  posture_flags;  // Posture (bit 0-2) + Finger Attached (bit 3) + Valid (bit 4)
+    uint8_t  top_fsm_state;  // Top Level FSM State
+    uint8_t  sub_fsm_state;  // Sub Level FSM State
+    uint8_t  battery_level;  // Battery Level (0-100%)
+} somniguard_ble_telemetry_pkt_t;
 #pragma pack(pop)
 
 /**
@@ -81,6 +93,27 @@ bool somniguard_ble_notify_event(somniguard_ble_evt_type_t type,
                                  somniguard_ble_evt_code_t code,
                                  uint16_t param1,
                                  uint16_t param2);
+
+/**
+ * @brief Gửi thông báo định kỳ 12 bytes chỉ số sinh lý (Telemetry Channel)
+ * @param telemetry Con trỏ cấu trúc telemetry
+ * @return true nếu gửi thành công
+ */
+bool somniguard_ble_notify_telemetry(const somniguard_ble_telemetry_pkt_t *telemetry);
+
+/**
+ * @brief Gửi thông báo chuỗi "SOS" trực tiếp về Mobile App (Tương thích Android App Emergency Alert)
+ * @return true nếu gửi thành công
+ */
+bool somniguard_ble_send_sos_msg(void);
+
+/**
+ * @brief Xử lý lệnh điều khiển Downlink gửi từ Mobile App qua GATT Write (0x0000FFE3-...)
+ * @param data Mảng byte dữ liệu lệnh
+ * @param len Độ dài mảng byte
+ * @param fsm_ptr Con trỏ đến cấu trúc FSM chính
+ */
+void somniguard_ble_handle_downlink_cmd(const uint8_t *data, uint16_t len, void *fsm_ptr);
 
 /**
  * @brief In thông tin debug của gói tin BLE event

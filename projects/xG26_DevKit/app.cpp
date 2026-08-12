@@ -186,9 +186,38 @@ void FsmLoggerTask(void *pvParameters)
                (unsigned long)fsm->quiet_duration_ms,
                fsm->vibrate_level,
                fsm->buzzer_alarm ? "ON" : "OFF",
-               fsm->ble_sos_flag ? "ON" : "OFF",
+               somniguard_ble_is_subscribed() ? "ON" : "OFF",
                fsm->buffer_pro.count,
                TENSOR_MAX_ROWS);
+    }
+}
+
+// Task gửi dữ liệu Telemetry 12 bytes định kỳ (1Hz)
+void BleTelemetryTask(void *pvParameters)
+{
+    somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
+    uint16_t seq_num = 0;
+
+    while (1)
+    {
+        vTaskDelay(pdMS_TO_TICKS(1000)); // Gửi telemetry mỗi 1 giây liên tục
+
+        somniguard_ble_telemetry_pkt_t telem;
+        telem.seq_num = ++seq_num;
+        telem.spo2_x100 = (uint16_t)(fsm->dsp_res.spo2 * 100.0f);
+        telem.hr_x10 = (uint16_t)(fsm->dsp_res.heart_rate * 10.0f);
+        telem.motion_mg = (uint16_t)(fsm->motion_res.motion_energy * 1000.0f);
+
+        uint8_t posture = 0; // 0: Supine
+        uint8_t finger_flag = fsm->dsp_pro.is_finger_attached ? (1 << 3) : 0;
+        uint8_t valid_flag = fsm->dsp_res.signal_valid ? (1 << 4) : 0;
+        telem.posture_flags = (posture & 0x07) | finger_flag | valid_flag;
+
+        telem.top_fsm_state = (uint8_t)fsm->top_state;
+        telem.sub_fsm_state = (uint8_t)fsm->normal_state;
+        telem.battery_level = 100;
+
+        somniguard_ble_notify_telemetry(&telem);
     }
 }
 
@@ -198,15 +227,6 @@ void app_init(void)
 
     // Khởi tạo BLE Notification Manager
     somniguard_ble_manager_init();
-
-    // // 0. Tạo Task LED Blinky ĐẦU TIÊN để đảm bảo đèn luôn nhấp nháy ngay cả khi cảm biến bị lỗi
-    // xTaskCreate(
-    //     LedBlinkyTask,
-    //     "LedBlinky",
-    //     128,
-    //     NULL,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
 
     // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
     if (!mySensorHub.initSensors(50))
@@ -219,7 +239,6 @@ void app_init(void)
     }
 
     // Chạy AGC calibration trước khi tạo FSM tasks
-    // (Đảm bảo AGC hoàn thành 100% không bị race condition với FSM)
     mySensorHub.agcAmplitudeLed();
 
     // Khởi tạo Bộ Não FSM
@@ -275,6 +294,15 @@ void app_init(void)
         FsmLoggerTask,
         "FsmLogger",
         512,
+        &myFSM,
+        tskIDLE_PRIORITY + 1,
+        NULL);
+
+    // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
+    xTaskCreate(
+        BleTelemetryTask,
+        "BleTelem",
+        384,
         &myFSM,
         tskIDLE_PRIORITY + 1,
         NULL);
