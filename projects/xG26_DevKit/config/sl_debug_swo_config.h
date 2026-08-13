@@ -108,4 +108,3 @@
 // <<< sl:end pin_tool >>>
 
 #endif // SL_DEBUG_SWO_CONFIG_H
-

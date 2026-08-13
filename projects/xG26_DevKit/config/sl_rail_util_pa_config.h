@@ -81,4 +81,3 @@
 // <<< end of configuration section >>>
 
 #endif // SL_RAIL_UTIL_PA_CONFIG_H
-

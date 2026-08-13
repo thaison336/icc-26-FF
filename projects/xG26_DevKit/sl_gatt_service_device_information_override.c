@@ -174,15 +174,19 @@ void sl_gatt_service_device_information_override_on_event(sl_bt_msg_t *evt)
 #endif
 
       // Khởi tạo và bắt đầu phát sóng BLE Advertising (chứa tên 'SomniGuard')
-      sc = sl_bt_advertiser_create_set(&s_advertising_set_handle);
+      if (s_advertising_set_handle == 0xFF) {
+        sc = sl_bt_advertiser_create_set(&s_advertising_set_handle);
+      } else {
+        sc = SL_STATUS_OK;
+      }
       if (sc == SL_STATUS_OK) {
         sl_status_t sc_gen = sl_bt_legacy_advertiser_generate_data(s_advertising_set_handle, sl_bt_advertiser_general_discoverable);
         sl_status_t sc_timing = sl_bt_advertiser_set_timing(s_advertising_set_handle, 160, 160, 0, 0);
         sl_status_t sc_start = sl_bt_legacy_advertiser_start(s_advertising_set_handle, sl_bt_legacy_advertiser_connectable);
-        printf("[BLE ADV] Set created ok. Data gen: 0x%04X, Timing: 0x%04X, Start: 0x%04X\r\n",
-               (unsigned int)sc_gen, (unsigned int)sc_timing, (unsigned int)sc_start);
+        // printf("[BLE ADV] Set created ok (handle=%d). Data gen: 0x%04X, Timing: 0x%04X, Start: 0x%04X\r\n",
+        //        s_advertising_set_handle, (unsigned int)sc_gen, (unsigned int)sc_timing, (unsigned int)sc_start);
       } else {
-        printf("[BLE ADV ERR] Failed to create advertiser set! sc=0x%04X\r\n", (unsigned int)sc);
+        // printf("[BLE ADV ERR] Failed to create advertiser set! sc=0x%04X\r\n", (unsigned int)sc);
       }
       break;
 
@@ -237,27 +241,27 @@ void sl_gatt_service_device_information_override_on_event(sl_bt_msg_t *evt)
 void sl_bt_on_event(sl_bt_msg_t *evt)
 {
     // 1. Chạy handler cấu hình thông tin thiết bị & GATT Advertising
-    sl_gatt_service_device_information_override_on_event(evt);
+ //   sl_gatt_service_device_information_override_on_event(evt);
 
     // 2. In log UART Console để theo dõi trực tiếp trạng thái BLE của DevKit
     switch (SL_BT_MSG_ID(evt->header)) {
         case sl_bt_evt_system_boot_id:
-            printf("\r\n=======================================================\r\n");
-            printf("[BLE STACK] >>> Bluetooth Stack Booted Successfully! <<<\r\n");
-            printf("[BLE STACK] BLE Device Name: 'SomniGuard'\r\n");
-            printf("[BLE STACK] Status: Advertising is ACTIVE over the air.\r\n");
-            printf("=======================================================\r\n\r\n");
+            // printf("\r\n=======================================================\r\n");
+            // printf("[BLE STACK] >>> Bluetooth Stack Booted Successfully! <<<\r\n");
+            // printf("[BLE STACK] BLE Device Name: 'SomniGuard'\r\n");
+            // printf("[BLE STACK] Status: Advertising is ACTIVE over the air.\r\n");
+            // printf("=======================================================\r\n\r\n");
             break;
 
         case sl_bt_evt_connection_opened_id:
-            printf("\r\n[BLE STACK] >>> MOBILE APP CONNECTED! (Conn ID: %d) <<<\r\n\r\n",
-                   (int)evt->data.evt_connection_opened.connection);
+            // printf("\r\n[BLE STACK] >>> MOBILE APP CONNECTED! (Conn ID: %d) <<<\r\n\r\n",
+            //        (int)evt->data.evt_connection_opened.connection);
             break;
 
         case sl_bt_evt_connection_closed_id:
-            printf("\r\n[BLE STACK] >>> MOBILE APP DISCONNECTED! (Reason: 0x%04X) <<<\r\n",
-                   (unsigned int)evt->data.evt_connection_closed.reason);
-            printf("[BLE STACK] Restarting BLE Advertising for 'SomniGuard'...\r\n\r\n");
+            // printf("\r\n[BLE STACK] >>> MOBILE APP DISCONNECTED! (Reason: 0x%04X) <<<\r\n",
+            //        (unsigned int)evt->data.evt_connection_closed.reason);
+            // printf("[BLE STACK] Restarting BLE Advertising for 'SomniGuard'...\r\n\r\n");
             break;
 
         default:

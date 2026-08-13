@@ -50,4 +50,3 @@
 // <<< end of configuration section >>>
 
 #endif // SL_BLUETOOTH_COMMON_CONFIG_H
-

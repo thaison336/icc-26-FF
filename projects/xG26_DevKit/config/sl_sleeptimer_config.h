@@ -81,4 +81,3 @@
 #endif /* SLEEPTIMER_CONFIG_H */
 
 // <<< end of configuration section >>>
-

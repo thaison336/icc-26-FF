@@ -192,4 +192,3 @@
   }
 
 #endif // SL_BLUETOOTH_CONFIG_H
-

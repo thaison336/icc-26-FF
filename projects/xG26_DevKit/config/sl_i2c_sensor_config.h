@@ -80,4 +80,3 @@
 // <<< sl:end pin_tool >>>
 
 #endif // SL_I2C_SENSOR_CONFIG_H
-

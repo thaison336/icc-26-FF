@@ -41,4 +41,3 @@
 // <<< end of configuration section >>>
 
 #endif // SL_BGAPI_CONFIG_H
-

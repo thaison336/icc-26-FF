@@ -34,7 +34,7 @@ void actuators_bsp_init(void)
     // GPIO_PinModeSet(BUZZER_PORT, BUZZER_PIN, gpioModePushPull, 0);
 
     s_actuators_initialized = true;
-    printf("[ACTUATORS BSP] Hardware Actuators Initialized (RGB LED, Haptic, Buzzer).\r\n");
+    // printf("[ACTUATORS BSP] Hardware Actuators Initialized (RGB LED, Haptic, Buzzer).\r\n");
 }
 
 void actuators_set_rgb_led(bool red, bool green, bool blue)
@@ -134,7 +134,7 @@ extern "C" void somniguard_led_display(uint8_t stateDevice)
 // Override hàm BLE SOS Control
 extern "C" void somniguard_BLE_control()
 {
-    printf("[ACTUATORS BSP] BLE SOS Emergency Broadcast Active!\r\n");
+    // printf("[ACTUATORS BSP] BLE SOS Emergency Broadcast Active!\r\n");
     somniguard_ble_notify_event(
         SOMNIGUARD_BLE_EVT_TYPE_HEALTH_ALERT,
         SOMNIGUARD_BLE_EVT_CODE_APNEA_WARNING,

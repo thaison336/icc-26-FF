@@ -30,13 +30,22 @@ include:
 sdk:
   vendor: silabs
   id: simplicity_sdk
-  version: 2026.6.0
+  version: 2026.6.1
 toolchain_settings: [
   ]
 component:
 - package: simplicity_sdk
   vendor: silabs
   id: EFR32MG26B510F3200IM68
+- package: simplicity_sdk
+  vendor: silabs
+  id: bluetooth_feature_connection
+- package: simplicity_sdk
+  vendor: silabs
+  id: bluetooth_feature_gatt_server
+- package: simplicity_sdk
+  vendor: silabs
+  id: bluetooth_feature_legacy_advertiser
 - package: simplicity_sdk
   vendor: silabs
   id: bluetooth_rtos_adaptation
@@ -121,6 +130,12 @@ autoselected_components:
   id: bit
 - package: simplicity_sdk
   vendor: silabs
+  id: bluetooth_agents_controller
+- package: simplicity_sdk
+  vendor: silabs
+  id: bluetooth_agents_host
+- package: simplicity_sdk
+  vendor: silabs
   id: bluetooth_common
 - package: simplicity_sdk
   vendor: silabs
@@ -136,7 +151,7 @@ autoselected_components:
   id: bluetooth_controller_crypto
 - package: simplicity_sdk
   vendor: silabs
-  id: bluetooth_controller_libraries
+  id: bluetooth_controller_release_libraries
 - package: simplicity_sdk
   vendor: silabs
   id: bluetooth_controller_rtos_adaptation
@@ -146,6 +161,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: bluetooth_device_compatibility
+- package: simplicity_sdk
+  vendor: silabs
+  id: bluetooth_feature_advertiser
 - package: simplicity_sdk
   vendor: silabs
   id: bluetooth_feature_gap
@@ -388,6 +406,9 @@ autoselected_components:
   id: iostream_uart_common
 - package: simplicity_sdk
   vendor: silabs
+  id: mbedtls_adjust_config
+- package: simplicity_sdk
+  vendor: silabs
   id: mbedtls_config
 - package: simplicity_sdk
   vendor: silabs
@@ -407,6 +428,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: mbedtls_source
+- package: simplicity_sdk
+  vendor: silabs
+  id: mbedtls_source_builtin
 - package: simplicity_sdk
   vendor: silabs
   id: mbedtls_threading_alt_cmsis_rtos2
@@ -461,6 +485,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: psa_crypto
+- package: simplicity_sdk
+  vendor: silabs
+  id: psa_crypto_adjust_config
 - package: simplicity_sdk
   vendor: silabs
   id: psa_crypto_aes
@@ -623,4 +650,8 @@ ui_hints:
   highlight:
   - path: readme.md
     focus: true
+sdk_extension:
+- vendor: silabs
+  id: aiml
+  version: 3.0.1
 

@@ -24,7 +24,7 @@ bool initMax30102(MAX30102_manager &MAX30102Sensor, int samplerate)
 
     if (!MAX30102Sensor.begin(&max30102I2CBus))
     {
-        printf("Failed to initialize MAX30102!\r\n");
+        // printf("Failed to initialize MAX30102!\r\n");
         return false;
     }
 
@@ -42,7 +42,7 @@ bool initIMU(IMU &imu, int samplerate)
     sl_status_t imu_status = imu.setup(samplerate, IMU_AVERAGING);
     if (imu_status != SL_STATUS_OK)
     {
-        printf("Failed to initialize IMU!\r\n");
+        // printf("Failed to initialize IMU!\r\n");
         return false;
     }
     return true;
@@ -127,7 +127,7 @@ bool SensorHub::getsensordata(sensor_hub_data_t *data)
     {
         uint32_t current_time = xTaskGetTickCount();
         uint32_t diff = (last_imu_discard_time == 0) ? 0 : (current_time - last_imu_discard_time);
-        printf("\r\n[RESYNC] IMU too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", imu_discard_count, diff);
+        // printf("\r\n[RESYNC] IMU too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", imu_discard_count, diff);
         last_imu_discard_time = current_time;
     }
 
@@ -142,7 +142,7 @@ bool SensorHub::getsensordata(sensor_hub_data_t *data)
     {
         uint32_t current_time = xTaskGetTickCount();
         uint32_t diff = (last_max_discard_time == 0) ? 0 : (current_time - last_max_discard_time);
-        printf("\r\n[RESYNC] MAX30102 too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", max_discard_count, diff);
+        // printf("\r\n[RESYNC] MAX30102 too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", max_discard_count, diff);
         last_max_discard_time = current_time;
     }
     // ------------------------------------------
@@ -214,7 +214,7 @@ void SensorHub::agcAmplitudeLed()
     {
         full_scale_adc = 262143; // 18-bit ADC fallback
     }
-    printf("[AGC] Max ADC range: %lu\r\n", (unsigned long)full_scale_adc);
+    // printf("[AGC] Max ADC range: %lu\r\n", (unsigned long)full_scale_adc);
 
     const uint32_t FINGER_THRESHOLD = 30000;
     const uint32_t TARGET_MIN = (uint32_t)(0.40f * full_scale_adc);
@@ -231,7 +231,7 @@ void SensorHub::agcAmplitudeLed()
     m_max30102.setSampleRate(this->max30102_freq);
 
     // 1. Chờ interrupt task đọc đủ dữ liệu và phát hiện tay đặt vào
-    printf("[AGC] Waiting for finger to be placed on sensor...\r\n");
+    // printf("[AGC] Waiting for finger to be placed on sensor...\r\n");
 
     uint32_t wait_print_counter = 0;
     while (true)
@@ -248,8 +248,8 @@ void SensorHub::agcAmplitudeLed()
 
             if (checkIR >= FINGER_THRESHOLD || checkRed >= FINGER_THRESHOLD)
             {
-                printf("[AGC] Finger detected! (IR: %lu, RED: %lu). Starting AGC calibration...\r\n",
-                       (unsigned long)checkIR, (unsigned long)checkRed);
+                // printf("[AGC] Finger detected! (IR: %lu, RED: %lu). Starting AGC calibration...\r\n",
+                //        (unsigned long)checkIR, (unsigned long)checkRed);
                 m_max30102.clearFIFO();
                 m_max30102.setSampleRate(this->max30102_freq);
                 vTaskDelay(pdMS_TO_TICKS(100));
@@ -258,23 +258,23 @@ void SensorHub::agcAmplitudeLed()
 
             if (++wait_print_counter % 10 == 0)
             {
-                printf("[AGC] Waiting for finger... (IR: %lu, RED: %lu < %lu)\r\n",
-                       (unsigned long)checkIR, (unsigned long)checkRed,
-                       (unsigned long)FINGER_THRESHOLD);
+                // printf("[AGC] Waiting for finger... (IR: %lu, RED: %lu < %lu)\r\n",
+                //        (unsigned long)checkIR, (unsigned long)checkRed,
+                //        (unsigned long)FINGER_THRESHOLD);
             }
         }
         else
         {
             if (++wait_print_counter % 10 == 0)
             {
-                printf("[AGC] Waiting for sensor data...\r\n");
+                // printf("[AGC] Waiting for sensor data...\r\n");
             }
         }
     }
 
     // 2. AGC Calibration - đọc từ software buffer, queue LED commands cho interrupt task
-    printf("[AGC] Calibrating LED amplitudes (Target: %lu - %lu)...\r\n",
-           (unsigned long)TARGET_MIN, (unsigned long)TARGET_MAX);
+    // printf("[AGC] Calibrating LED amplitudes (Target: %lu - %lu)...\r\n",
+    //        (unsigned long)TARGET_MIN, (unsigned long)TARGET_MAX);
 
     uint32_t stable_count = 0;
     const uint32_t MAX_AGC_ITERATIONS = 60;
@@ -304,7 +304,7 @@ void SensorHub::agcAmplitudeLed()
 
         if (ppgIR < FINGER_THRESHOLD && ppgRed < FINGER_THRESHOLD)
         {
-            printf("[AGC] Finger removed! Pausing...\r\n");
+            // printf("[AGC] Finger removed! Pausing...\r\n");
             stable_count = 0;
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
@@ -313,16 +313,16 @@ void SensorHub::agcAmplitudeLed()
         bool is_red_ok = (ppgRed >= TARGET_MIN && ppgRed <= TARGET_MAX);
         bool is_ir_ok = (ppgIR >= TARGET_MIN && ppgIR <= TARGET_MAX);
 
-        printf("[AGC #%lu] RED=%lu (Amp=0x%02X) IR=%lu (Amp=0x%02X)\r\n",
-               (unsigned long)iteration, (unsigned long)ppgRed, current_red_amp,
-               (unsigned long)ppgIR, current_ir_amp);
+        // printf("[AGC #%lu] RED=%lu (Amp=0x%02X) IR=%lu (Amp=0x%02X)\r\n",
+        //        (unsigned long)iteration, (unsigned long)ppgRed, current_red_amp,
+        //        (unsigned long)ppgIR, current_ir_amp);
 
         if (is_red_ok && is_ir_ok)
         {
             stable_count++;
             if (stable_count >= 3)
             {
-                printf("[AGC] CONVERGED & STABLE!\r\n");
+                // printf("[AGC] CONVERGED & STABLE!\r\n");
                 break;
             }
         }
@@ -379,7 +379,7 @@ void SensorHub::agcAmplitudeLed()
         }
     }
 
-    printf("[AGC] DONE: RED Amp=0x%02X, IR Amp=0x%02X\r\n",
-           current_red_amp, current_ir_amp);
+    // printf("[AGC] DONE: RED Amp=0x%02X, IR Amp=0x%02X\r\n",
+    //        current_red_amp, current_ir_amp);
     // Interrupt task vẫn đang chạy, không cần resume
 }

@@ -86,4 +86,3 @@
 // <<< sl:end pin_tool >>>
 
 #endif // SL_ICM40627_CONFIG_H
-

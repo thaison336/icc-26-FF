@@ -223,7 +223,7 @@ void BleTelemetryTask(void *pvParameters)
 
 void app_init(void)
 {
-    printf("========== APP INIT FSM RUN START ==========\r\n");
+    // printf("========== APP INIT FSM RUN START ==========\r\n");
 
     // Khởi tạo BLE Notification Manager
     somniguard_ble_manager_init();
@@ -231,11 +231,11 @@ void app_init(void)
     // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
     if (!mySensorHub.initSensors(50))
     {
-        printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
+        // printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
     }
     else
     {
-        printf("SensorHub initialized successfully.\r\n");
+        // printf("SensorHub initialized successfully.\r\n");
     }
 
     // Chạy AGC calibration trước khi tạo FSM tasks
@@ -289,14 +289,14 @@ void app_init(void)
         tskIDLE_PRIORITY + 1,
         NULL);
 
-    // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý
-    xTaskCreate(
-        FsmLoggerTask,
-        "FsmLogger",
-        512,
-        &myFSM,
-        tskIDLE_PRIORITY + 1,
-        NULL);
+    // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power profiling)
+    // xTaskCreate(
+    //     FsmLoggerTask,
+    //     "FsmLogger",
+    //     512,
+    //     &myFSM,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
 
     // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
     xTaskCreate(
@@ -307,7 +307,7 @@ void app_init(void)
         tskIDLE_PRIORITY + 1,
         NULL);
 
-    printf("========== APP INIT FSM RUN DONE ==========\r\n");
+    // printf("========== APP INIT FSM RUN DONE ==========\r\n");
 }
 
 void app_process_action(void)

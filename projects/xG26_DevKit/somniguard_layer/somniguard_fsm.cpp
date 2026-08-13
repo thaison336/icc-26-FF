@@ -150,9 +150,9 @@ void somniguard_fsm_init(somniguard_fsm_t *fsm, SensorHub *hub)
     fsm->active_init_done = false;
     fsm->sleep_buffering_entry_done = false;
 
-    printf("\r\n[FSM INIT] SomniGuard FSM initialized. Start TopState: %s, ActiveSubState: %s\r\n",
-           somniguard_top_state_str(fsm->top_state),
-           somniguard_active_state_str(fsm->active_state));
+    // printf("\r\n[FSM INIT] SomniGuard FSM initialized. Start TopState: %s, ActiveSubState: %s\r\n",
+    //        somniguard_top_state_str(fsm->top_state),
+    //        somniguard_active_state_str(fsm->active_state));
 }
 
 void somniguard_fsm_set_top_state(somniguard_fsm_t *fsm, somniguard_top_fsm_state_t new_state)
@@ -163,10 +163,10 @@ void somniguard_fsm_set_top_state(somniguard_fsm_t *fsm, somniguard_top_fsm_stat
     }
 
     uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-    printf("\r\n>>> [FSM TOP STATE TRANSITION] %s -> %s (at %lu ms) <<<\r\n",
-           somniguard_top_state_str(fsm->top_state),
-           somniguard_top_state_str(new_state),
-           (unsigned long)now_ms);
+    // printf("\r\n>>> [FSM TOP STATE TRANSITION] %s -> %s (at %lu ms) <<<\r\n",
+    //        somniguard_top_state_str(fsm->top_state),
+    //        somniguard_top_state_str(new_state),
+    //        (unsigned long)now_ms);
     fsm->prev_top_state = fsm->top_state;
     fsm->top_state = new_state;
     fsm->top_state_entry_ms = now_ms;
@@ -188,10 +188,10 @@ void somniguard_fsm_set_sub_state(somniguard_fsm_t *fsm, somniguard_sub_fsm_stat
     }
 
     uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-    printf("--> [FSM SUB-INTERVENT TRANSITION] %s -> %s (at %lu ms)\r\n",
-           somniguard_sub_state_str(fsm->sub_state),
-           somniguard_sub_state_str(new_sub_state),
-           (unsigned long)now_ms);
+    // printf("--> [FSM SUB-INTERVENT TRANSITION] %s -> %s (at %lu ms)\r\n",
+    //        somniguard_sub_state_str(fsm->sub_state),
+    //        somniguard_sub_state_str(new_sub_state),
+    //        (unsigned long)now_ms);
     fsm->sub_state = new_sub_state;
     fsm->sub_state_entry_ms = now_ms;
 }
@@ -220,10 +220,10 @@ void somniguard_fsm_set_normal_state(somniguard_fsm_t *fsm, somniguard_normal_st
     }
 
     uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-    printf("--> [FSM SLEEP SUB TRANSITION] %s -> %s (at %lu ms)\r\n",
-           somniguard_normal_state_str(fsm->normal_state),
-           somniguard_normal_state_str(new_sub_state),
-           (unsigned long)now_ms);
+    // printf("--> [FSM SLEEP SUB TRANSITION] %s -> %s (at %lu ms)\r\n",
+    //        somniguard_normal_state_str(fsm->normal_state),
+    //        somniguard_normal_state_str(new_sub_state),
+    //        (unsigned long)now_ms);
     fsm->normal_state = new_sub_state;
     fsm->sub_state_entry_ms = now_ms;
 
@@ -875,7 +875,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     fsm->sleep_buffering_entry_done = true;
 
-                    printf("[SLEEP] Buffering... waiting for %d samples.\r\n", TENSOR_MAX_ROWS);
+                    // printf("[SLEEP] Buffering... waiting for %d samples.\r\n", TENSOR_MAX_ROWS);
                 }
 
                 // Chờ buffer đầy đủ 40s (1000 mẫu) mới chuyển sang MONITORING
@@ -886,8 +886,8 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     fsm->anomaly_detect_ms = 0;
                     fsm->anomaly_sustained = false;
 
-                    printf("[SLEEP] Buffer full (%d samples). Starting monitoring. SpO2 baseline: %d%%\r\n",
-                           TENSOR_MAX_ROWS, (int)fsm->spo2_baseline);
+                    // printf("[SLEEP] Buffer full (%d samples). Starting monitoring. SpO2 baseline: %d%%\r\n",
+                    //        TENSOR_MAX_ROWS, (int)fsm->spo2_baseline);
 
                     somniguard_fsm_set_normal_state(fsm, SUB_SLEEP_MONITORING);
                 }
@@ -908,8 +908,8 @@ void somniguard_normal_sleep_task(void *pvParameters)
                 // Nguy cơ ngưng thở rõ ràng → chuyển DEEP_ANALYSIS ngay lập tức
                 if (spo2 < FSM_SPO2_CRITICAL_THRESHOLD)
                 {
-                    printf("[SLEEP] ANOMALY Tier-1: SpO2 %.1f%% < %.0f%% threshold! -> DEEP_ANALYSIS\r\n",
-                           spo2, FSM_SPO2_CRITICAL_THRESHOLD);
+                    // printf("[SLEEP] ANOMALY Tier-1: SpO2 %.1f%% < %.0f%% threshold! -> DEEP_ANALYSIS\r\n",
+                    //        spo2, FSM_SPO2_CRITICAL_THRESHOLD);
 
                     fsm->anomaly_detect_ms = 0;
                     fsm->anomaly_sustained = false;
@@ -927,15 +927,15 @@ void somniguard_normal_sleep_task(void *pvParameters)
                         // Bắt đầu đếm thời gian bất thường bền vững
                         fsm->anomaly_detect_ms = now_ms;
                         fsm->anomaly_sustained = true;
-                        printf("[SLEEP] ANOMALY Tier-2: SpO2 drop %.1f%% (baseline %.1f%% -> now %.1f%%). Counting...\r\n",
-                               spo2_drop, fsm->spo2_baseline, spo2);
+                        // printf("[SLEEP] ANOMALY Tier-2: SpO2 drop %.1f%% (baseline %.1f%% -> now %.1f%%). Counting...\r\n",
+                        //        spo2_drop, fsm->spo2_baseline, spo2);
                     }
                     else if ((now_ms - fsm->anomaly_detect_ms) >= FSM_ANOMALY_SUSTAIN_MS)
                     {
                         // Drop đã kéo dài đủ 10s → chuyển DEEP_ANALYSIS
-                        printf("[SLEEP] ANOMALY Tier-2: Sustained %.lu ms (>= %lu ms). -> DEEP_ANALYSIS\r\n",
-                               (unsigned long)(now_ms - fsm->anomaly_detect_ms),
-                               (unsigned long)FSM_ANOMALY_SUSTAIN_MS);
+                        // printf("[SLEEP] ANOMALY Tier-2: Sustained %.lu ms (>= %lu ms). -> DEEP_ANALYSIS\r\n",
+                        //        (unsigned long)(now_ms - fsm->anomaly_detect_ms),
+                        //        (unsigned long)FSM_ANOMALY_SUSTAIN_MS);
 
                         fsm->anomaly_detect_ms = 0;
                         fsm->anomaly_sustained = false;
@@ -948,7 +948,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     // SpO2 trở về bình thường → reset bộ đếm bất thường
                     if (fsm->anomaly_sustained)
                     {
-                        printf("[SLEEP] Anomaly cleared. SpO2 recovered to %.1f%%\r\n", spo2);
+                        // printf("[SLEEP] Anomaly cleared. SpO2 recovered to %.1f%%\r\n", spo2);
                     }
                     fsm->anomaly_detect_ms = 0;
                     fsm->anomaly_sustained = false;
@@ -1009,7 +1009,7 @@ void somniguard_fsm_apply_actuators(somniguard_fsm_t *fsm)
 
 void somniguard_enter_em4_shutoff(somniguard_fsm_t *fsm)
 {
-    printf("\r\n[EMU POWER] Entering EM4 Shutoff Mode via EMLIB...\r\n");
+    // printf("\r\n[EMU POWER] Entering EM4 Shutoff Mode via EMLIB...\r\n");
 
     // Phát gói tin BLE báo chuẩn bị tắt nguồn
     somniguard_ble_notify_event(

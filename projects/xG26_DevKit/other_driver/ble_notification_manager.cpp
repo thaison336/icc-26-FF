@@ -41,15 +41,15 @@ void somniguard_ble_manager_init(void)
     active_connection_handle = 0xFF;
     app_is_subscribed        = false;
     global_seq_num           = 0;
-    printf("[BLE MGR] SomniGuard BLE Notification Manager Initialized.\r\n");
+    // printf("[BLE MGR] SomniGuard BLE Notification Manager Initialized.\r\n");
 }
 
 void somniguard_ble_set_subscribed(uint8_t connection_handle, bool is_subscribed)
 {
     active_connection_handle = connection_handle;
     app_is_subscribed        = is_subscribed;
-    printf("[BLE MGR] Connection 0x%02X Subscription Status: %s\r\n",
-           connection_handle, is_subscribed ? "SUBSCRIBED" : "UNSUBSCRIBED");
+    // printf("[BLE MGR] Connection 0x%02X Subscription Status: %s\r\n",
+    //        connection_handle, is_subscribed ? "SUBSCRIBED" : "UNSUBSCRIBED");
 }
 
 bool somniguard_ble_is_subscribed(void)
@@ -59,15 +59,15 @@ bool somniguard_ble_is_subscribed(void)
 
 void somniguard_ble_log_packet(const somniguard_ble_event_pkt_t *pkt)
 {
-    printf("[BLE NOTIFY] Sent Pkt -> Type: 0x%02X, Code: 0x%02X, Seq: %u, Param1: %u, Param2: %u\r\n",
-           pkt->event_type, pkt->event_code, pkt->seq_num, pkt->param1, pkt->param2);
+    // printf("[BLE NOTIFY] Sent Pkt -> Type: 0x%02X, Code: 0x%02X, Seq: %u, Param1: %u, Param2: %u\r\n",
+    //        pkt->event_type, pkt->event_code, pkt->seq_num, pkt->param1, pkt->param2);
 }
 
 bool somniguard_ble_send_sos_msg(void)
 {
 #if defined(gattdb_wearable_data)
     const char sos_str[] = "SOS";
-    printf("[BLE MGR] Sending SOS Emergency Notification Payload ('SOS')...\r\n");
+    // printf("[BLE MGR] Sending SOS Emergency Notification Payload ('SOS')...\r\n");
 
     if (active_connection_handle != 0xFF && app_is_subscribed) {
         sl_status_t sc = sl_bt_gatt_server_send_notification(
@@ -122,7 +122,7 @@ bool somniguard_ble_notify_event(somniguard_ble_evt_type_t type,
         if (sc == SL_STATUS_OK) {
             return true;
         } else {
-            printf("[BLE MGR] WARNING: Send notification failed (sc=0x%04X)\r\n", (unsigned int)sc);
+            // printf("[BLE MGR] WARNING: Send notification failed (sc=0x%04X)\r\n", (unsigned int)sc);
             return false;
         }
     } else {
@@ -155,8 +155,8 @@ bool somniguard_ble_notify_telemetry(const somniguard_ble_telemetry_pkt_t *telem
         snprintf(telem_str, sizeof(telem_str), "NO FINGER");
     }
 
-    printf("[BLE TELEM #%u] Dispatched '%s' over BLE RF (conn=0x%02X)\r\n",
-           telemetry->seq_num, telem_str, active_connection_handle);
+    // printf("[BLE TELEM #%u] Dispatched '%s' over BLE RF (conn=0x%02X)\r\n",
+    //        telemetry->seq_num, telem_str, active_connection_handle);
 
 #if defined(gattdb_wearable_data)
     // Gửi chuỗi telemetry lên Characteristic 0000FFE1-0000-1000-8000-00805F9B34FB (Android App đang lắng nghe)
@@ -204,33 +204,33 @@ void somniguard_ble_handle_downlink_cmd(const uint8_t *data, uint16_t len, void 
 
     uint8_t cmd_id = data[0];
     uint8_t param1 = (len > 1) ? data[1] : 0;
-    printf("[BLE DOWNLINK] Received Command ID: 0x%02X, Param1: 0x%02X (Len: %u)\r\n",
-           cmd_id, param1, len);
+    // printf("[BLE DOWNLINK] Received Command ID: 0x%02X, Param1: 0x%02X (Len: %u)\r\n",
+    //        cmd_id, param1, len);
 
     switch (cmd_id) {
         case 0x01: // Mute Alarm / Silence Buzzer & Haptics
-            printf("[BLE DOWNLINK] Command 0x01: Muting active alarm!\r\n");
+            // printf("[BLE DOWNLINK] Command 0x01: Muting active alarm!\r\n");
             // Silence active alarms via FSM if available
             break;
 
         case 0x02: // Manual Spot-Check
-            printf("[BLE DOWNLINK] Command 0x02: Triggering manual spot-check...\r\n");
+            // printf("[BLE DOWNLINK] Command 0x02: Triggering manual spot-check...\r\n");
             break;
 
         case 0x03: // Force Graceful EM4 Shutdown
-            printf("[BLE DOWNLINK] Command 0x03: Force Enter EM4 Graceful Shutoff!\r\n");
+            // printf("[BLE DOWNLINK] Command 0x03: Force Enter EM4 Graceful Shutoff!\r\n");
             break;
 
         case 0x04: // Set Sensitivity Level
-            printf("[BLE DOWNLINK] Command 0x04: Set Apnea Sensitivity Level to %u\r\n", param1);
+            // printf("[BLE DOWNLINK] Command 0x04: Set Apnea Sensitivity Level to %u\r\n", param1);
             break;
 
         case 0x05: // Sync System Timestamp
-            printf("[BLE DOWNLINK] Command 0x05: Sync Timestamp\r\n");
+            // printf("[BLE DOWNLINK] Command 0x05: Sync Timestamp\r\n");
             break;
 
         default:
-            printf("[BLE DOWNLINK WARN] Unknown Command ID: 0x%02X\r\n", cmd_id);
+            // printf("[BLE DOWNLINK WARN] Unknown Command ID: 0x%02X\r\n", cmd_id);
             break;
     }
 }

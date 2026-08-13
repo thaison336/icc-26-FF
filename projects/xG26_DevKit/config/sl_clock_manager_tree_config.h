@@ -318,4 +318,3 @@
 #endif /* SL_CLOCK_MANAGER_TREE_CONFIG_H */
 
 // <<< end of configuration section >>>
-

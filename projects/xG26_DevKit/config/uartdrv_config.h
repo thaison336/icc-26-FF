@@ -121,4 +121,3 @@
 /** @} (end addtogroup uartdrv) */
 
 #endif /* __SILICON_LABS_UARTDRV_CONFIG_H__ */
-

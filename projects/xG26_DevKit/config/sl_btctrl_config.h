@@ -34,7 +34,7 @@
 // <i> Enable or disable the scanner reception early abort feature.
 // <i> This feature allows the controller to control the scanner to abort the reception of a packet if it will conflinct with another scheduled higher priority task.
 #ifndef SL_BT_CONTROLLER_SCANNER_RECEPTION_EARLY_ABORT
-#define SL_BT_CONTROLLER_SCANNER_RECEPTION_EARLY_ABORT (0)
+#define SL_BT_CONTROLLER_SCANNER_RECEPTION_EARLY_ABORT 0
 #endif
 
 // <o SL_BT_CONTROLLER_LINKLAYER_IRQ_PRIORITY> Linklayer interrupt priority in baremetal applications <1..7:1>
@@ -151,7 +151,7 @@
 // <i> This allows connections to overrun lower priority tasks as long as there is data to transmit or receive on the connection,
 // and the maximum connection event length is not reached.
 #ifndef SL_BT_CONTROLLER_CONN_EVENT_LENGTH_EXTENSION
-#define SL_BT_CONTROLLER_CONN_EVENT_LENGTH_EXTENSION (0)
+#define SL_BT_CONTROLLER_CONN_EVENT_LENGTH_EXTENSION 0
 #endif
 // </h> Bluetooth Controller Configuration for LE Connection
 
@@ -187,4 +187,3 @@
 // <<< end of configuration section >>>
 
 #endif // SL_BTCTRL_CONFIG_H
-

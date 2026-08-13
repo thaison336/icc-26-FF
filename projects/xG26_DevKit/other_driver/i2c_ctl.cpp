@@ -34,7 +34,7 @@ bool I2CBus::transfer(I2C_TransferSeq_TypeDef &seq)
     xSemaphoreGive(m_mutex);
     if (status != i2cTransferDone)
 {
-    printf("I2C status = %d\n", status);
+    // printf("I2C status = %d\n", status);
 }
     return (status == i2cTransferDone);
 }

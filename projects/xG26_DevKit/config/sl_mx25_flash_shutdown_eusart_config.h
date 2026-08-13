@@ -65,4 +65,3 @@
 // <<< sl:end pin_tool >>>
 
 #endif // SL_MX25_FLASH_SHUTDOWN_CONFIG_H
-

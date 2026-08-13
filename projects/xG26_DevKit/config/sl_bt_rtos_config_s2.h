@@ -82,4 +82,3 @@
 // <<< end of configuration section >>>
 
 #endif // SL_BT_RTOS_CONFIG_S2_H
-
