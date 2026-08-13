@@ -37,6 +37,9 @@
 #include "somniguard_layer/somniguard_buffer.h"
 #include "somniguard_layer/somniguard_fsm.h"
 #include "other_driver/ble_notification_manager.h"
+#include <stdlib.h>
+#include <string.h>
+#include "model/model.h"
 
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
@@ -112,32 +115,32 @@ void DataProcessingTask(void *pvParameters)
 // #define SYSTEM_STATUS_LED_BRIGHTNESS_PERCENT 10
 // // Task nhấp nháy TẤT CẢ các chân LED / RGB LED trên kit BRD2608A Rev A04
 // // - PA04: RGB Red | PB00: RGB Green | PB02: RGB Blue | PB04: LED0 | PB05: LED1
-// void LedBlinkyTask(void *pvParameters)
-// {
-//     (void)pvParameters;
+void LedBlinkyTask(void *pvParameters)
+{
+    (void)pvParameters;
 
-//     // Cấu hình tất cả các chân LED làm Output Push-Pull
-//     GPIO_PinModeSet(gpioPortA, 4, gpioModePushPull, 1);
-//     GPIO_PinModeSet(gpioPortB, 0, gpioModePushPull, 1);
-//     GPIO_PinModeSet(gpioPortB, 2, gpioModePushPull, 1);
+    // Cấu hình tất cả các chân LED làm Output Push-Pull
+    GPIO_PinModeSet(gpioPortA, 4, gpioModePushPull, 1);
+    GPIO_PinModeSet(gpioPortB, 0, gpioModePushPull, 1);
+    GPIO_PinModeSet(gpioPortB, 2, gpioModePushPull, 1);
 
-//     while (1)
-//     {
-//         // 1. Kéo xuống LOW (Mạch Active-Low trên BRD2608A: Pull 0 = SÁNG TẤT CẢ LED)
-//         GPIO_PinOutClear(gpioPortA, 4);
-//         GPIO_PinOutClear(gpioPortB, 0);
-//         GPIO_PinOutClear(gpioPortB, 2);
+    while (1)
+    {
+        // 1. Kéo xuống LOW (Mạch Active-Low trên BRD2608A: Pull 0 = SÁNG TẤT CẢ LED)
+        GPIO_PinOutClear(gpioPortA, 4);
+        GPIO_PinOutClear(gpioPortB, 0);
+        GPIO_PinOutClear(gpioPortB, 2);
 
-//         vTaskDelay(pdMS_TO_TICKS(500));
+        vTaskDelay(pdMS_TO_TICKS(500));
 
-//         // 2. Kéo lên HIGH (Pull 1 = TẮT TẤT CẢ LED)
-//         GPIO_PinOutSet(gpioPortA, 4);
-//         GPIO_PinOutSet(gpioPortB, 0);
-//         GPIO_PinOutSet(gpioPortB, 2);
+        // 2. Kéo lên HIGH (Pull 1 = TẮT TẤT CẢ LED)
+        GPIO_PinOutSet(gpioPortA, 4);
+        GPIO_PinOutSet(gpioPortB, 0);
+        GPIO_PinOutSet(gpioPortB, 2);
 
-//         vTaskDelay(pdMS_TO_TICKS(500));
-//     }
-// }
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
 
 // Task log trạng thái và các thông số vận hành FSM
 void FsmLoggerTask(void *pvParameters)
@@ -221,93 +224,179 @@ void BleTelemetryTask(void *pvParameters)
     }
 }
 
+static void main_app_task(void *pvParameters)
+{
+    (void)pvParameters;
+    char line_buf[512];
+    int idx = 0;
+
+    while (1)
+    {
+        // Đọc 1 ký tự từ Serial
+        int c = getchar();
+        if (c == EOF)
+        {
+            vTaskDelay(pdMS_TO_TICKS(1)); // Dùng vTaskDelay thay vì taskYIELD để tránh chiếm dụng 100% CPU
+            continue;
+        }
+
+        if (c == '\n' || c == '\r')
+        {
+            if (idx > 0)
+            {
+                line_buf[idx] = '\0';
+
+                if (strncmp(line_buf, "RESET", 5) == 0)
+                {
+                    reset_buffer();
+                    fflush(stdout);
+                }
+                else if (line_buf[0] == 'W' && line_buf[1] == ',')
+                {
+                    float frame[28];
+                    int count = 0;
+                    char *p = line_buf + 2;
+                    while (p && *p && count < 28)
+                    {
+                        char *next_comma = strchr(p, ',');
+                        if (next_comma)
+                            *next_comma = '\0';
+                        frame[count++] = atof(p);
+                        if (next_comma)
+                            p = next_comma + 1;
+                        else
+                            break;
+                    }
+                    if (count == 28)
+                    {
+                        process_new_frame(frame);
+                        fflush(stdout);
+                    }
+                    else
+                    {
+                        printf("ERR:BadFrame:%d\r\n", count);
+                        fflush(stdout);
+                    }
+                }
+                idx = 0; // Reset buffer
+            }
+        }
+        else
+        {
+            if (idx < sizeof(line_buf) - 1)
+            {
+                line_buf[idx++] = c;
+            }
+        }
+    }
+}
+
 void app_init(void)
 {
     // printf("========== APP INIT FSM RUN START ==========\r\n");
 
     // Khởi tạo BLE Notification Manager
-    somniguard_ble_manager_init();
+    //    somniguard_ble_manager_init();
+
+    // Khởi tạo AI Model
+    init_model();
 
     // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
-    if (!mySensorHub.initSensors(50))
-    {
-        // printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
-    }
-    else
-    {
-        // printf("SensorHub initialized successfully.\r\n");
-    }
+    // if (!mySensorHub.initSensors(50))
+    // {
+    //     // printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
+    // }
+    // else
+    // {
+    //     // printf("SensorHub initialized successfully.\r\n");
+    // }
 
     // Chạy AGC calibration trước khi tạo FSM tasks
-    mySensorHub.agcAmplitudeLed();
+    // mySensorHub.agcAmplitudeLed();
 
     // Khởi tạo Bộ Não FSM
-    somniguard_fsm_init(&myFSM, &mySensorHub);
+    // somniguard_fsm_init(&myFSM, &mySensorHub);
 
-    // 1. Task Thu thập & Xử lý Dữ liệu Cảm biến
-    xTaskCreate(
-        DataProcessingTask,
-        "DataProc",
-        512,
-        &myFSM,
-        tskIDLE_PRIORITY + 3,
-        NULL);
-
-    // 2. Task Bộ Não FSM Chính (Top-Level FSM Runner - 100ms)
-    xTaskCreate(
-        somniguard_fsm_task,
-        "FsmMain",
-        512,
-        &myFSM,
-        tskIDLE_PRIORITY + 2,
-        NULL);
-
-    // 3. Sub-FSM Task cho Active Mode
-    xTaskCreate(
-        somniguard_active_mode_task,
-        "FsmActive",
-        384,
-        &myFSM,
-        tskIDLE_PRIORITY + 1,
-        NULL);
-
-    // 4. Sub-FSM Task cho Normal Sleep
-    xTaskCreate(
-        somniguard_normal_sleep_task,
-        "FsmSleep",
-        384,
-        &myFSM,
-        tskIDLE_PRIORITY + 1,
-        NULL);
-
-    // 5. Sub-FSM Task cho Deep Analysis / Can thiệp
-    xTaskCreate(
-        somniguard_deep_analysis_task,
-        "FsmDeep",
-        384,
-        &myFSM,
-        tskIDLE_PRIORITY + 1,
-        NULL);
-
-    // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power profiling)
+    // // 1. Task Thu thập & Xử lý Dữ liệu Cảm biến
     // xTaskCreate(
-    //     FsmLoggerTask,
-    //     "FsmLogger",
+    //     DataProcessingTask,
+    //     "DataProc",
     //     512,
+    //     &myFSM,
+    //     tskIDLE_PRIORITY + 3,
+    //     NULL);
+
+    // // 2. Task Bộ Não FSM Chính (Top-Level FSM Runner - 100ms)
+    // xTaskCreate(
+    //     somniguard_fsm_task,
+    //     "FsmMain",
+    //     512,
+    //     &myFSM,
+    //     tskIDLE_PRIORITY + 2,
+    //     NULL);
+
+    // // 3. Sub-FSM Task cho Active Mode
+    // xTaskCreate(
+    //     somniguard_active_mode_task,
+    //     "FsmActive",
+    //     384,
     //     &myFSM,
     //     tskIDLE_PRIORITY + 1,
     //     NULL);
 
-    // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
+    // // 4. Sub-FSM Task cho Normal Sleep
+    // xTaskCreate(
+    //     somniguard_normal_sleep_task,
+    //     "FsmSleep",
+    //     384,
+    //     &myFSM,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
+
+    // // 5. Sub-FSM Task cho Deep Analysis / Can thiệp
+    // xTaskCreate(
+    //     somniguard_deep_analysis_task,
+    //     "FsmDeep",
+    //     384,
+    //     &myFSM,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
+
+    // // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power profiling)
+    // // xTaskCreate(
+    // //     FsmLoggerTask,
+    // //     "FsmLogger",
+    // //     512,
+    // //     &myFSM,
+    // //     tskIDLE_PRIORITY + 1,
+    // //     NULL);
+
+    // // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
+    // xTaskCreate(
+    //     BleTelemetryTask,
+    //     "BleTelem",
+    //     384,
+    //     &myFSM,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
+
+    // 8. Task Serial AI Test
     xTaskCreate(
-        BleTelemetryTask,
-        "BleTelem",
-        384,
-        &myFSM,
+        main_app_task,
+        "SerialTask",
+        2048,
+        NULL,
+        tskIDLE_PRIORITY + 1,
+        NULL);
+    xTaskCreate(
+        LedBlinkyTask,
+        "LedBlinky",
+        512,
+        NULL,
         tskIDLE_PRIORITY + 1,
         NULL);
 
-    // printf("========== APP INIT FSM RUN DONE ==========\r\n");
+    printf("========== APP INIT FSM RUN DONE ==========\r\n");
 }
 
 void app_process_action(void)

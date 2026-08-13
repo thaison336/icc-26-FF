@@ -1,6 +1,6 @@
 # Silicon Labs Project Configuration Tools: slcp, v0, Component selection file.
-project_name: xG26_Devkit
-label: xG26_Devkit
+project_name: xG26_Explorerkit
+label: xG26_Explorerkit
 description: |
   This example project shows an empty configuration that can be used as a starting point to add components and functionality.
 category: Example|Platform
@@ -20,8 +20,6 @@ readme:
 - path: readme.md
 source:
 - path: app.cpp
-- path: model/Interpreter.cpp
-- path: model/ppg_compress_stat7.c
 tag:
 - hidden
 - hwfilter:device:device_series_2
@@ -29,15 +27,11 @@ include:
 - path: .
   file_list:
   - path: app.h
-- path: model
-  file_list:
-  - path: model.h
-  - path: ppg_compress_stat7.h
 sdk:
   vendor: silabs
   id: simplicity_sdk
-  version: 2026.6.1
-toolchain_settings: 
+  version: 2026.6.0
+toolchain_settings:
 - value: -mfp16-format=ieee
   option: gcc_compiler_option
 component:
@@ -46,27 +40,18 @@ component:
   - Somni_Guard
   vendor: silabs
   id: ml_model
+- package: aiml
+  vendor: silabs
+  id: tensorflow_lite_micro
 - package: simplicity_sdk
   vendor: silabs
-  id: EFR32MG26B510F3200IM68
+  id: EFR32MG26B510F3200IM48
 - package: simplicity_sdk
   vendor: silabs
-  id: bluetooth_feature_connection
+  id: app_log
 - package: simplicity_sdk
   vendor: silabs
-  id: bluetooth_feature_connection_role_peripheral
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_feature_gatt_server
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_feature_legacy_advertiser
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_rtos_adaptation
-- package: simplicity_sdk
-  vendor: silabs
-  id: brd2608a
+  id: brd2709a
 - package: simplicity_sdk
   vendor: silabs
   id: clock_manager
@@ -84,35 +69,22 @@ component:
   id: freertos
 - package: simplicity_sdk
   vendor: silabs
-  id: gatt_service_device_information_override
-- package: simplicity_sdk
-  vendor: silabs
-  id: gpiointerrupt
+  id: freertos_heap_3
 - package: simplicity_sdk
   instance:
-  - sensor
+  - MAX30102
   vendor: silabs
   id: i2c
-- package: simplicity_sdk
-  vendor: silabs
-  id: icm40627_driver
-- package: simplicity_sdk
-  vendor: silabs
-  id: imu_driver
-- package: simplicity_sdk
-  vendor: silabs
-  id: imu_driver_icm40627
 - package: simplicity_sdk
   instance:
   - vcom
   vendor: silabs
   id: iostream_eusart
 - package: simplicity_sdk
+  instance:
+  - led0
   vendor: silabs
-  id: iostream_retarget_stdio
-- package: simplicity_sdk
-  vendor: silabs
-  id: iostream_stdlib_config
+  id: simple_led
 - package: simplicity_sdk
   vendor: silabs
   id: sl_main
@@ -125,90 +97,21 @@ autoselected_components:
 - package: aiml
   vendor: silabs
   id: ml_compiler
-- package: aiml
-  vendor: silabs
-  id: tensorflow_lite_micro
 - package: simplicity_sdk
   vendor: silabs
   id: agents_md
 - package: simplicity_sdk
   vendor: silabs
-  id: app_assert
-- package: simplicity_sdk
-  vendor: silabs
   id: atomic
-- package: simplicity_sdk
-  vendor: silabs
-  id: bgapi_protocol
-- package: simplicity_sdk
-  vendor: silabs
-  id: bgapi_protocol_libraries_release
-- package: simplicity_sdk
-  vendor: silabs
-  id: bgapi_protocol_rtos_adaptation
 - package: simplicity_sdk
   vendor: silabs
   id: bit
 - package: simplicity_sdk
   vendor: silabs
-  id: bluetooth_agents_controller
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_agents_host
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_common
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_common_libraries_release
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_configuration
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_controller
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_controller_crypto
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_controller_release_libraries
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_controller_rtos_adaptation
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_crypto_lib_psa
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_device_compatibility
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_feature_advertiser
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_feature_gap
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_gattdb_definition
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_host_adaptation
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_host_release_libraries
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_stack
-- package: simplicity_sdk
-  vendor: silabs
-  id: bluetooth_version
-- package: simplicity_sdk
-  vendor: silabs
   id: board_control
 - package: simplicity_sdk
   vendor: silabs
-  id: brd2608a_config
+  id: brd2709a_config
 - package: simplicity_sdk
   vendor: silabs
   id: clock_manager_init_hal_s2
@@ -272,6 +175,9 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: device_init_dcdc_s2
+- package: simplicity_sdk
+  vendor: silabs
+  id: device_init_emu
 - package: simplicity_sdk
   vendor: silabs
   id: device_manager
@@ -352,13 +258,7 @@ autoselected_components:
   id: event_handler
 - package: simplicity_sdk
   vendor: silabs
-  id: freertos_heap_3
-- package: simplicity_sdk
-  vendor: silabs
   id: freertos_kernel_cortexm
-- package: simplicity_sdk
-  vendor: silabs
-  id: gatt_configuration
 - package: simplicity_sdk
   vendor: silabs
   id: gpio
@@ -403,13 +303,7 @@ autoselected_components:
   id: hal_system_impl
 - package: simplicity_sdk
   vendor: silabs
-  id: hfxo_manager
-- package: simplicity_sdk
-  vendor: silabs
   id: i2c_core
-- package: simplicity_sdk
-  vendor: silabs
-  id: imu_driver_core
 - package: simplicity_sdk
   vendor: silabs
   id: interrupt_manager
@@ -424,37 +318,16 @@ autoselected_components:
   id: iostream_eusart_core
 - package: simplicity_sdk
   vendor: silabs
+  id: iostream_retarget_stdio
+- package: simplicity_sdk
+  vendor: silabs
+  id: iostream_stdlib_config
+- package: simplicity_sdk
+  vendor: silabs
   id: iostream_uart_common
 - package: simplicity_sdk
   vendor: silabs
-  id: mbedtls_adjust_config
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_config
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_core
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_crypto_platform_api
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_platform_dynamic_memory_allocation_config_default
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_slcrypto
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_slcrypto_driver
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_source
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_source_builtin
-- package: simplicity_sdk
-  vendor: silabs
-  id: mbedtls_threading_alt_cmsis_rtos2
+  id: led
 - package: simplicity_sdk
   vendor: silabs
   id: memory_manager
@@ -478,112 +351,7 @@ autoselected_components:
   id: memory_manager_retention_control_hal
 - package: simplicity_sdk
   vendor: silabs
-  id: memory_profiler_api
-- package: simplicity_sdk
-  vendor: silabs
-  id: mx25_flash_shutdown_eusart
-- package: simplicity_sdk
-  vendor: silabs
-  id: power_manager
-- package: simplicity_sdk
-  vendor: silabs
-  id: power_manager_core
-- package: simplicity_sdk
-  vendor: silabs
-  id: power_manager_core_common
-- package: simplicity_sdk
-  vendor: silabs
-  id: power_manager_core_impl_sleep_loop
-- package: simplicity_sdk
-  vendor: silabs
-  id: power_manager_core_impl_sleep_loop_common
-- package: simplicity_sdk
-  vendor: silabs
-  id: power_manager_deepsleep
-- package: simplicity_sdk
-  vendor: silabs
-  id: power_manager_handler_implementation
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_adjust_config
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_aes
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_api
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_cipher_ecb
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_cmac
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_common
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_common_source
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_config
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_ecc
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_ecc_secp256r1
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_ecdh
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_source
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_crypto_trng
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_driver
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_driver_common
-- package: simplicity_sdk
-  vendor: silabs
-  id: psa_se_driver
-- package: simplicity_sdk
-  vendor: silabs
-  id: rail_lib
-- package: simplicity_sdk
-  vendor: silabs
-  id: rail_lib_singleprotocol
-- package: simplicity_sdk
-  vendor: silabs
-  id: rail_lib_singleprotocol_alpha_chips
-- package: simplicity_sdk
-  vendor: silabs
-  id: rail_lib_singleprotocol_internal_chips_dummy
-- package: simplicity_sdk
-  vendor: silabs
-  id: rail_util_features
-- package: simplicity_sdk
-  vendor: silabs
-  id: se_manager
-- package: simplicity_sdk
-  vendor: silabs
-  id: se_manager_config
-- package: simplicity_sdk
-  vendor: silabs
-  id: se_manager_crypto
-- package: simplicity_sdk
-  vendor: silabs
-  id: se_manager_mailbox
-- package: simplicity_sdk
-  vendor: silabs
-  id: se_manager_mailbox_default
+  id: simple_led_core
 - package: simplicity_sdk
   vendor: silabs
   id: sl_assert
@@ -607,24 +375,6 @@ autoselected_components:
   id: sl_main_process_action
 - package: simplicity_sdk
   vendor: silabs
-  id: sl_rail_util_built_in_phys
-- package: simplicity_sdk
-  vendor: silabs
-  id: sl_rail_util_compatible_pa
-- package: simplicity_sdk
-  vendor: silabs
-  id: sl_rail_util_pa
-- package: simplicity_sdk
-  vendor: silabs
-  id: sl_rail_util_pa_tables
-- package: simplicity_sdk
-  vendor: silabs
-  id: sl_rail_util_power_manager_init
-- package: simplicity_sdk
-  vendor: silabs
-  id: sl_rail_util_sequencer
-- package: simplicity_sdk
-  vendor: silabs
   id: sl_string
 - package: simplicity_sdk
   vendor: silabs
@@ -634,28 +384,10 @@ autoselected_components:
   id: sleeptimer_cortexm
 - package: simplicity_sdk
   vendor: silabs
-  id: sli_crypto
-- package: simplicity_sdk
-  vendor: silabs
-  id: sli_crypto_s2
-- package: simplicity_sdk
-  vendor: silabs
-  id: sli_protocol_crypto
-- package: simplicity_sdk
-  vendor: silabs
-  id: sli_psec_common
-- package: simplicity_sdk
-  vendor: silabs
-  id: sli_psec_osal
-- package: simplicity_sdk
-  vendor: silabs
   id: slist
 - package: simplicity_sdk
   vendor: silabs
   id: status
-- package: simplicity_sdk
-  vendor: silabs
-  id: trustzone_unaware
 - package: simplicity_sdk
   vendor: silabs
   id: uartdrv_core
@@ -674,5 +406,5 @@ ui_hints:
 sdk_extension:
 - vendor: silabs
   id: aiml
-  version: 3.0.1
+  version: 3.0.0
 

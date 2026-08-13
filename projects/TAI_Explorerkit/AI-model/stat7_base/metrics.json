@@ -1,0 +1,20 @@
+{
+  "accuracy": 0.9975757575757576,
+  "precision_abnormal": 0.9976689976689976,
+  "recall_abnormal": 0.9976689976689976,
+  "f1_abnormal": 0.9976689976689976,
+  "confusion_matrix": [
+    [
+      395,
+      1
+    ],
+    [
+      1,
+      428
+    ]
+  ],
+  "threshold": 0.5,
+  "n_train_windows": 3299,
+  "n_test_windows": 825,
+  "n_channels": 10
+}
