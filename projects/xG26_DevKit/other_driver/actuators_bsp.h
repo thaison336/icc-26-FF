@@ -9,6 +9,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include <stdio.h>
+#include "em_timer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +27,8 @@ void actuators_bsp_init(void);
  * @param blue Bật/tắt kênh Xanh Dương
  */
 void actuators_set_rgb_led(bool red, bool green, bool blue);
-
+void actuators_pwm_init(void);
+void actuators_set_rgb_brightness_8bit(uint8_t red, uint8_t green, uint8_t blue);
 /**
  * @brief Bật/tắt còi báo động (Buzzer).
  * @param enable true = Bật còi, false = Tắt còi

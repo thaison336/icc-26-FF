@@ -151,7 +151,7 @@ bool MAX30105::begin(I2CBus *i2cBus, uint32_t i2cSpeed, uint8_t i2caddr)
   {
     m_bufferMutex = xSemaphoreCreateMutex();
   }
-  //   printf("Bus     = %p\n", i2cBus);
+  // printf("Bus     = %p\n", i2cBus);
   // printf("Speed   = %lu\n", i2cSpeed);
   // printf("Address = 0x%02X\n", i2caddr);
 
@@ -371,7 +371,7 @@ void MAX30105::clearFIFO(void)
   writeRegister8(_i2caddr, MAX30105_FIFOOVERFLOW, 0);
   writeRegister8(_i2caddr, MAX30105_FIFOREADPTR, 0);
   clearDataBuffer();
-  getINT1(); // Clear pending A_FULL interrupt latch: đưa INT pin về HIGH để falling edge tiếp theo được nhận đúng
+  getINT1(); // Clear pending A_FULL interrupt latch: Ä‘Æ°a INT pin vá» HIGH Ä‘á»ƒ falling edge tiáº¿p theo Ä‘Æ°á»£c nháº­n Ä‘Ãºng
   getINT2();
 }
 
@@ -611,13 +611,13 @@ void MAX30105::setup(uint8_t powerLevel, uint8_t sampleAverage, uint8_t ledMode,
     setSampleRate(MAX30105_SAMPLERATE_3200);
   else
     setSampleRate(MAX30105_SAMPLERATE_50);
-  // printf("MODE=%02X\n",
-  //        readRegister8(_i2caddr, MAX30105_MODECONFIG));
+  // //printf("MODE=%02X\n",
+  // //        readRegister8(_i2caddr, MAX30105_MODECONFIG));
 
-  // printf("SPO2=%02X\n",
-  //        readRegister8(_i2caddr, MAX30105_SPO2_CONFIG));
+  // //printf("SPO2=%02X\n",
+  // //        readRegister8(_i2caddr, MAX30105_SPO2_CONFIG));
 
-  // printf("FIFO_CFG=%02X\n",
+  // //printf("FIFO_CFG=%02X\n",
   //        readRegister8(_i2caddr, MAX30105_FIFOCONFIG));
   //   uint8_t ctrl1 = readRegister8(_i2caddr, MAX30105_MULTILEDCONFIG1);
   // uint8_t ctrl2 = readRegister8(_i2caddr, MAX30105_MULTILEDCONFIG2);
@@ -712,18 +712,18 @@ bool MAX30105::nextSample(void)
 {
   bool hasAdvanced = false;
 
-  // Khóa Mutex một lần duy nhất bao trọn cả logic kiểm tra và cập nhật
+  // KhÃ³a Mutex má»™t láº§n duy nháº¥t bao trá»n cáº£ logic kiá»ƒm tra vÃ  cáº­p nháº­t
   if (xSemaphoreTake(m_bufferMutex, portMAX_DELAY) == pdTRUE)
   {
-    // Kiểm tra trực tiếp xem có dữ liệu mới không (head khác tail nghĩa là có dữ liệu)
+    // Kiá»ƒm tra trá»±c tiáº¿p xem cÃ³ dá»¯ liá»‡u má»›i khÃ´ng (head khÃ¡c tail nghÄ©a lÃ  cÃ³ dá»¯ liá»‡u)
     if (sense.head != sense.tail)
     {
       sense.tail++;
       sense.tail %= STORAGE_SIZE; // Wrap condition
-      hasAdvanced = true;         // Đánh dấu là đã tăng tail thành công
+      hasAdvanced = true;         // ÄÃ¡nh dáº¥u lÃ  Ä‘Ã£ tÄƒng tail thÃ nh cÃ´ng
     }
 
-    // Nhả Mutex sau khi hoàn tất mọi thao tác
+    // Nháº£ Mutex sau khi hoÃ n táº¥t má»i thao tÃ¡c
     xSemaphoreGive(m_bufferMutex);
   }
 
@@ -747,9 +747,9 @@ bool MAX30105::nextSample(void)
 //     if (numberOfSamples < 0) numberOfSamples += 32;
 
 //     int bytesLeftToRead = numberOfSamples * activeLEDs * 3;
-//     uint8_t rx_buffer[288]; // FIFO tối đa chứa 32 mẫu * 3 LED * 3 bytes = 288 bytes
+//     uint8_t rx_buffer[288]; // FIFO tá»‘i Ä‘a chá»©a 32 máº«u * 3 LED * 3 bytes = 288 bytes
 
-//     // Đọc trọn gói khối dữ liệu từ FIFO bằng I2C Non-blocking
+//     // Äá»c trá»n gÃ³i khá»‘i dá»¯ liá»‡u tá»« FIFO báº±ng I2C Non-blocking
 //     I2C_TransferSeq_TypeDef seq;
 //     I2C_TransferReturn_TypeDef status;
 //     uint8_t reg = MAX30105_FIFODATA;
@@ -767,9 +767,9 @@ bool MAX30105::nextSample(void)
 //         status = I2C_Transfer(sl_i2cspm_sensor);
 //     }
 
-//     if (status != i2cTransferDone) return 0; // Lỗi I2C
+//     if (status != i2cTransferDone) return 0; // Lá»—i I2C
 
-//     // Parse mảng dữ liệu vừa nhận được vào struct
+//     // Parse máº£ng dá»¯ liá»‡u vá»«a nháº­n Ä‘Æ°á»£c vÃ o struct
 //     int bufferIndex = 0;
 //     for (int i = 0; i < numberOfSamples; i++)
 //     {
@@ -809,10 +809,10 @@ bool MAX30105::nextSample(void)
 
 uint16_t MAX30105::check(void)
 {
-  // printf("========== CHECK FIFO ==========\n");
+  // //printf("========== CHECK FIFO ==========\n");
   uint8_t readPointer = getReadPointer();
   uint8_t writePointer = getWritePointer();
-  // printf("RP=%u WP=%u Diff=%d\n",
+  // //printf("RP=%u WP=%u Diff=%d\n",
   //      readPointer,
   //      writePointer,
   //      (writePointer - readPointer + 32) % 32);
@@ -825,7 +825,7 @@ uint16_t MAX30105::check(void)
 
   uint16_t bytesToRead = numberOfSamples * activeLEDs * 3;
 
-  // Đọc toàn bộ FIFO chỉ với một transaction I2C
+  // Äá»c toÃ n bá»™ FIFO chá»‰ vá»›i má»™t transaction I2C
   if (!_m_i2cBus->read(_i2caddr,
                        MAX30105_FIFODATA,
                        fifoBuffer,
@@ -845,7 +845,7 @@ uint16_t MAX30105::check(void)
 
       if (sense.head == sense.tail)
       {
-        // Buffer đầy, bỏ mẫu cũ nhất
+        // Buffer Ä‘áº§y, bá» máº«u cÅ© nháº¥t
         sense.tail = (sense.tail + 1) % STORAGE_SIZE;
       }
 
@@ -932,7 +932,7 @@ bool MAX30105::bitMask(uint8_t reg,
 //   I2C_TransferReturn_TypeDef status;
 //   uint8_t rx_buf[1];
 
-//   seq.addr = (address << 1); // em_i2c yêu cầu địa chỉ 8-bit
+//   seq.addr = (address << 1); // em_i2c yÃªu cáº§u Ä‘á»‹a chá»‰ 8-bit
 //   seq.flags = I2C_FLAG_WRITE_READ;
 //   seq.buf[0].data = &reg;
 //   seq.buf[0].len = 1;
@@ -941,7 +941,7 @@ bool MAX30105::bitMask(uint8_t reg,
 
 // status = I2C_TransferInit(sl_i2cspm_sensor, &seq);
 
-//   uint8_t timeout = 100; // Chờ tối đa 10 mili-giây
+//   uint8_t timeout = 100; // Chá» tá»‘i Ä‘a 10 mili-giÃ¢y
 //   while (status == i2cTransferInProgress) {
 //       vTaskDelay(pdMS_TO_TICKS(1));
 //       status = I2C_Transfer(sl_i2cspm_sensor);
@@ -950,8 +950,8 @@ bool MAX30105::bitMask(uint8_t reg,
 
 //   if (status == i2cTransferDone) return rx_buf[0];
 
-//   // Nếu hết 10ms mà không done, trả về 0 để tránh treo chip
-//   printf("[MAX30102] Reading time out/n");
+//   // Náº¿u háº¿t 10ms mÃ  khÃ´ng done, tráº£ vá» 0 Ä‘á»ƒ trÃ¡nh treo chip
+// printf("[MAX30102] Reading time out/n");
 //   return 0;
 
 // }
@@ -968,7 +968,7 @@ bool MAX30105::bitMask(uint8_t reg,
 
 // status = I2C_TransferInit(sl_i2cspm_sensor, &seq);
 
-//   uint8_t timeout = 10; // Chờ tối đa 10 mili-giây
+//   uint8_t timeout = 10; // Chá» tá»‘i Ä‘a 10 mili-giÃ¢y
 //   while (status == i2cTransferInProgress && timeout > 0) {
 //       vTaskDelay(pdMS_TO_TICKS(1));
 //       status = I2C_Transfer(sl_i2cspm_sensor);
@@ -986,7 +986,7 @@ uint8_t MAX30105::readRegister8(uint8_t address, uint8_t reg)
   }
   else
   {
-    printf("[MAX30102] error reading register\n");
+    // printf("[MAX30102] error reading register\n");
     return 0; // Return 0 on error
   }
 }
@@ -995,7 +995,7 @@ void MAX30105::writeRegister8(uint8_t address, uint8_t reg, uint8_t value)
   // printf("[MAX30102] Writing register 0x%02X to address 0x%02X\n", reg, address);
   if (!_m_i2cBus->writeRegister8(address, reg, value))
   {
-    printf("[MAX30102] error writing register\n");
+    // printf("[MAX30102] error writing register\n");
   }
 }
 void MAX30105::Max30102_setSampleRate(uint16_t sampleRate)
@@ -1104,14 +1104,14 @@ uint8_t MAX30105::getOverflowCounter(void)
 }
 void MAX30105::dumpFIFO()
 {
-  printf("WR=%d RD=%d OV=%d\n",
-         readRegister8(_i2caddr, MAX30105_FIFOWRITEPTR),
-         readRegister8(_i2caddr, MAX30105_FIFOREADPTR),
-         readRegister8(_i2caddr, MAX30105_FIFOOVERFLOW));
-  printf("MODE      = %02X\n", readRegister8(_i2caddr, 0x09));
-  printf("FIFO_CFG  = %02X\n", readRegister8(_i2caddr, 0x08));
-  printf("SPO2_CFG  = %02X\n", readRegister8(_i2caddr, 0x0A));
-  printf("INT_EN1   = %02X\n", readRegister8(_i2caddr, 0x02));
+  // printf("WR=%d RD=%d OV=%d\n",
+  //   readRegister8(_i2caddr, MAX30105_FIFOWRITEPTR),
+  //   readRegister8(_i2caddr, MAX30105_FIFOREADPTR),
+  //   readRegister8(_i2caddr, MAX30105_FIFOOVERFLOW));
+  // printf("MODE      = %02X\n", readRegister8(_i2caddr, 0x09));
+  // printf("FIFO_CFG  = %02X\n", readRegister8(_i2caddr, 0x08));
+  // printf("SPO2_CFG  = %02X\n", readRegister8(_i2caddr, 0x0A));
+  // printf("INT_EN1   = %02X\n", readRegister8(_i2caddr, 0x02));
   uint8_t b0 = readRegister8(0x57, 0x07);
   uint8_t b1 = readRegister8(0x57, 0x07);
   uint8_t b2 = readRegister8(0x57, 0x07);
@@ -1119,6 +1119,6 @@ void MAX30105::dumpFIFO()
   uint8_t b4 = readRegister8(0x57, 0x07);
   uint8_t b5 = readRegister8(0x57, 0x07);
 
-  printf("%02X %02X %02X %02X %02X %02X\n",
-         b0, b1, b2, b3, b4, b5);
+  // printf("%02X %02X %02X %02X %02X %02X\n",
+  //   b0, b1, b2, b3, b4, b5);
 }

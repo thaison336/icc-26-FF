@@ -44,6 +44,55 @@
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
 
+#define USE_MOCK_TENSOR_BUFFER 1
+
+#if USE_MOCK_TENSOR_BUFFER
+// Hàm sinh dữ liệu Tensor Buffer giả lập:
+// 1. Giai đoạn Khởi động (15s đầu): Giả lập chuyển từ ACTIVE -> NORMAL_SLEEP
+// 2. Các chu kỳ tiếp theo: 45s NORMAL -> 15s DEEP ANALYSIS (Chạy AI Model)
+static void get_mock_tensor_metrics(somniguard_fsm_t *fsm, uint32_t timestamp_ms, float *out_spo2, float *out_bpm, float *out_motion)
+{
+    // Giai đoạn 1: 15 giây đầu khởi động (chuyển từ ACTIVE_MODE -> NORMAL_SLEEP)
+    if (timestamp_ms < 15000)
+    {
+        *out_spo2 = 97.5f;
+        *out_bpm = 72.0f;
+        *out_motion = 0.001f; // Nằm yên tuyệt đối
+
+        // Đẩy nhanh quiet_duration của FSM để chuyển ACTIVE -> NORMAL nhanh chóng sau 5-15s
+        if (fsm != NULL && fsm->top_state == FSM_TOP_ACTIVE_MODE)
+        {
+            if (timestamp_ms >= 5000)
+            {
+                fsm->quiet_duration_ms += 20000UL; // Vượt ngưỡng FSM_SLEEP_ENTER_TIME_MS (120,000ms)
+            }
+        }
+        return;
+    }
+
+    // Giai đoạn 2: Chu kỳ lặp 60 giây (45s Normal + 15s Deep Analysis)
+    uint32_t cycle_ms = (timestamp_ms - 15000) % 60000;
+
+    if (cycle_ms < 45000)
+    {
+        // 45 giây: Trạng thái NORMAL (Giấc ngủ bình thường)
+        *out_spo2 = 97.5f + ((float)(timestamp_ms % 1000) / 2000.0f); // 97.5% - 98.0%
+        *out_bpm = 70.0f + ((float)(timestamp_ms % 2000) / 1000.0f);  // 70 - 72 BPM
+        *out_motion = 0.002f;                                         // Nằm yên
+    }
+    else
+    {
+        // 15 giây: Trạng thái DEEP ANALYSIS (Phân tích ngưng thở bằng AI Model)
+        // SpO2 giảm nhanh từ 97.5% xuống 82.0% trong 15 giây để kích hoạt AI Inference
+        float elapsed_sec = (float)(cycle_ms - 45000) / 1000.0f;
+        float spo2_drop = (elapsed_sec / 15.0f) * 15.5f; // Drop 15.5% trong 15s
+        *out_spo2 = 97.5f - spo2_drop;
+        *out_bpm = 72.0f + (elapsed_sec * 0.8f); // Nhịp tim tăng
+        *out_motion = 0.008f;
+    }
+}
+#endif
+
 void DataProcessingTask(void *pvParameters)
 {
     somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
@@ -83,15 +132,26 @@ void DataProcessingTask(void *pvParameters)
                 &fsm->motion_res);
 
             // 4. Khi có stride DSP mới (mỗi 1s/0.5s), đẩy đầy đủ 4 kênh vào Tensor Buffer
-            if ((fsm->top_state == FSM_TOP_NORMAL_SLEEP || fsm->top_state == FSM_TOP_DEEP_ANALYSIS) && has_new_stride)
+            if (has_new_stride)
             {
+                float push_spo2 = fsm->dsp_res.spo2;
+                float push_bpm = fsm->dsp_res.heart_rate;
+                float push_motion = fsm->motion_res.motion_energy;
+
+#if USE_MOCK_TENSOR_BUFFER
+                get_mock_tensor_metrics(fsm, timestamp_ms, &push_spo2, &push_bpm, &push_motion);
+                fsm->dsp_res.spo2 = push_spo2;
+                fsm->dsp_res.heart_rate = push_bpm;
+                fsm->motion_res.motion_energy = push_motion;
+                fsm->dsp_res.signal_valid = true;
+#endif
+
                 somniguard_buffer_push_50hz(
                     &fsm->buffer_pro,
-                    fsm->dsp_res.spo2,
-                    fsm->dsp_res.heart_rate,
+                    push_spo2,
+                    push_bpm,
                     ac_ir_buf,
-                    fsm->motion_res.motion_energy);
-                // printf("Raw IR: %lu, Raw Red: %lu", data.ppg_red, data.ppg_ir);
+                    push_motion);
             }
         }
 
@@ -99,22 +159,22 @@ void DataProcessingTask(void *pvParameters)
     }
 }
 
-// // =========================================================================
-// // Cấu hình Chân RGB LED Báo Trạng Thái Hệ Thống (xG26 DevKit BRD2608A / DK2608A)
-// // - Trên kit BRD2608A, LED RGB (U12) được nối với các chân GPIO:
-// //   + RGB RED:   gpioPortA, pin 4 (hoặc gpioPortB, pin 4)
-// //   + RGB GREEN: gpioPortB, pin 0
-// //   + RGB BLUE:  gpioPortB, pin 2
-// // =========================================================================
-// #define SYSTEM_STATUS_LED_PIN 4 // Mặc định dùng kênh RED/BLUE trên BRD2608A
-// #define SYSTEM_STATUS_LED_PORT gpioPortB
-// // Task nhấp nháy LED báo trạng thái thiết bị đang hoạt động (Toggle 500ms ON / 500ms OFF để tương thích 100% Active-Low & Active-High)
-// // Đặt % Cường độ sáng mong muốn (Từ 1% đến 100%)
-// // Mặc định 10% -> Tiết kiệm pin tối đa và dịu mắt khi đeo ngủ ban đêm
+// =========================================================================
+// Cấu hình Chân RGB LED Báo Trạng Thái Hệ Thống (xG26 DevKit BRD2608A / DK2608A)
+// - Trên kit BRD2608A, LED RGB (U12) được nối với các chân GPIO:
+//   + RGB RED:   gpioPortA, pin 4 (hoặc gpioPortB, pin 4)
+//   + RGB GREEN: gpioPortB, pin 0
+//   + RGB BLUE:  gpioPortB, pin 2
+// =========================================================================
+#define SYSTEM_STATUS_LED_PIN 4 // Mặc định dùng kênh RED/BLUE trên BRD2608A
+#define SYSTEM_STATUS_LED_PORT gpioPortB
+// Task nhấp nháy LED báo trạng thái thiết bị đang hoạt động (Toggle 500ms ON / 500ms OFF để tương thích 100% Active-Low & Active-High)
+// Đặt % Cường độ sáng mong muốn (Từ 1% đến 100%)
+// Mặc định 10% -> Tiết kiệm pin tối đa và dịu mắt khi đeo ngủ ban đêm
 
-// #define SYSTEM_STATUS_LED_BRIGHTNESS_PERCENT 10
-// // Task nhấp nháy TẤT CẢ các chân LED / RGB LED trên kit BRD2608A Rev A04
-// // - PA04: RGB Red | PB00: RGB Green | PB02: RGB Blue | PB04: LED0 | PB05: LED1
+#define SYSTEM_STATUS_LED_BRIGHTNESS_PERCENT 10
+// Task nhấp nháy TẤT CẢ các chân LED / RGB LED trên kit BRD2608A Rev A04
+// - PA04: RGB Red | PB00: RGB Green | PB02: RGB Blue | PB04: LED0 | PB05: LED1
 void LedBlinkyTask(void *pvParameters)
 {
     (void)pvParameters;
@@ -147,6 +207,7 @@ void FsmLoggerTask(void *pvParameters)
 {
     somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
     printf("--- SomniGuard FSM Logger Task Started ---\r\n");
+    fflush(stdout);
 
     uint32_t log_counter = 0;
     while (1)
@@ -192,6 +253,7 @@ void FsmLoggerTask(void *pvParameters)
                somniguard_ble_is_subscribed() ? "ON" : "OFF",
                fsm->buffer_pro.count,
                TENSOR_MAX_ROWS);
+        fflush(stdout);
     }
 }
 
@@ -293,28 +355,28 @@ static void main_app_task(void *pvParameters)
 
 void app_init(void)
 {
-    // printf("========== APP INIT FSM RUN START ==========\r\n");
+    printf("========== APP INIT FSM RUN START ==========\r\n");
 
-    // Khởi tạo BLE Notification Manager
-    //    somniguard_ble_manager_init();
+    // // Khởi tạo BLE Notification Manager
+    // somniguard_ble_manager_init();
 
-    // Khởi tạo AI Model
-    init_model();
+    // // Khởi tạo AI Model
+    // init_model();
 
-    // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
+    // // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
     // if (!mySensorHub.initSensors(50))
     // {
-    //     // printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
+    //     printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
     // }
     // else
     // {
-    //     // printf("SensorHub initialized successfully.\r\n");
+    //     printf("SensorHub initialized successfully.\r\n");
     // }
 
     // Chạy AGC calibration trước khi tạo FSM tasks
     // mySensorHub.agcAmplitudeLed();
 
-    // Khởi tạo Bộ Não FSM
+    // // Khởi tạo Bộ Não FSM
     // somniguard_fsm_init(&myFSM, &mySensorHub);
 
     // // 1. Task Thu thập & Xử lý Dữ liệu Cảm biến
@@ -362,14 +424,14 @@ void app_init(void)
     //     tskIDLE_PRIORITY + 1,
     //     NULL);
 
-    // // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power profiling)
-    // // xTaskCreate(
-    // //     FsmLoggerTask,
-    // //     "FsmLogger",
-    // //     512,
-    // //     &myFSM,
-    // //     tskIDLE_PRIORITY + 1,
-    // //     NULL);
+    // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power profiling)
+    // xTaskCreate(
+    //     FsmLoggerTask,
+    //     "FsmLogger",
+    //     512,
+    //     &myFSM,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
 
     // // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
     // xTaskCreate(
@@ -380,14 +442,14 @@ void app_init(void)
     //     tskIDLE_PRIORITY + 1,
     //     NULL);
 
-    // 8. Task Serial AI Test
-    xTaskCreate(
-        main_app_task,
-        "SerialTask",
-        2048,
-        NULL,
-        tskIDLE_PRIORITY + 1,
-        NULL);
+    // // 8. Task Serial AI Test
+    // xTaskCreate(
+    //     main_app_task,
+    //     "SerialTask",
+    //     2048,
+    //     NULL,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
     xTaskCreate(
         LedBlinkyTask,
         "LedBlinky",

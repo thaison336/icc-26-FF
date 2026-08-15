@@ -41,9 +41,9 @@ extern "C"
 /* Tensor Cấu trúc Dữ liệu cho AI / Apnea Detection (Cửa sổ 40s @ 50Hz = 2000 mẫu x 4 Cột) */
 #define FEATURE_RATE_1HZ 1       // Tần số các chỉ số SpO2, BPM, Motion (1Hz)
 #define FEATURE_RATE_IR_AC_HZ 25 // Tần số sóng PPG IR AC Normalized (50Hz)
-#define TENSOR_WINDOW_SEC 40     // Cửa sổ thời gian 40 giây
-#define TENSOR_MAX_ROWS 1000     // 40s * 25Hz = 1000 Hàng (PPG AC 50Hz + Sample-and-Hold 1Hz)
-#define TENSOR_COLS 4            // 4 Cột: [0: SpO2 (1Hz), 1: BPM (1Hz), 2: PPG IR AC Norm (50Hz), 3: Motion (1Hz)]
+#define TENSOR_WINDOW_SEC 30     // Cửa sổ thời gian 40 giây
+#define TENSOR_MAX_ROWS 60
+#define TENSOR_COLS 28 // 28 Cột: [0: SpO2 (1Hz), 1: BPM (1Hz), 2 - 26: PPG IR AC Norm (50Hz), 27: Motion (1Hz)]
 
 /* Ngưỡng tham chiếu sinh lý học */
 #define SPO2_MIN 70.0f            // SpO2 tối thiểu hợp lệ (%)

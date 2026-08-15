@@ -5,12 +5,14 @@ extern const unsigned char model_int8_tflite[];
 extern const unsigned int model_int8_tflite_len;
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-void init_model();
-void process_new_frame(const float* frame);
-void reset_buffer();
+    void init_model();
+    void process_new_frame(const float *frame);
+    void reset_buffer();
+    float predict_window_confidence(const float *window_60x28);
 
 #ifdef __cplusplus
 }

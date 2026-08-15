@@ -23,7 +23,7 @@ void MAX30102_manager::notifyFromISR()
 void init_MAX30102_Interrupt(MAX30102_manager *MAX30102Sensor)
 {
     g_MAX30102_manager = MAX30102Sensor;
-    // Khởi tạo thư viện quản lý ngắt của SDK (nếu chưa được hệ thống gọi)
+    // Khá»Ÿi táº¡o thÆ° viá»‡n quáº£n lÃ½ ngáº¯t cá»§a SDK (náº¿u chÆ°a Ä‘Æ°á»£c há»‡ thá»‘ng gá»i)
     GPIOINT_Init();
     NVIC_SetPriority(GPIO_EVEN_IRQn, 5);
 
@@ -72,17 +72,17 @@ bool MAX30102_manager::sendCommand(
     command.type = cmd;
     command.value = value;
 
-    // Không nên dùng portMAX_DELAY. Đặt timeout ngắn (vd 100ms) để tránh treo caller task.
+    // KhÃ´ng nÃªn dÃ¹ng portMAX_DELAY. Äáº·t timeout ngáº¯n (vd 100ms) Ä‘á»ƒ trÃ¡nh treo caller task.
     if (xQueueSend(m_cmdQueue, &command, pdMS_TO_TICKS(100)) == pdPASS)
     {
-        // Đánh thức task bên dưới để xử lý command ngay lập tức
+        // ÄÃ¡nh thá»©c task bÃªn dÆ°á»›i Ä‘á»ƒ xá»­ lÃ½ command ngay láº­p tá»©c
         if (m_taskHandle != nullptr)
         {
             xTaskNotifyGive(m_taskHandle);
         }
         return true;
     }
-    printf("Queue FULL!\r\n");
+  //  printf("Queue FULL!\r\n");
     return false;
 }
 bool MAX30102_manager::setSampleRate(uint16_t rate)
@@ -224,23 +224,23 @@ void MAX30102_manager::task()
     while (true)
     {
         //-----------------------------------
-        // Xử lý command trước
+        // Xá»­ lÃ½ command trÆ°á»›c
         //-----------------------------------
         //-----------------------------------
-        // Chờ interrupt
+        // Chá» interrupt
         //-----------------------------------
 
         ulTaskNotifyTake(pdTRUE,
                          portMAX_DELAY);
         if (m_dataReady)
         {
-            // printf("[MAX30102] Interrupt!!!!!\n");
+           // printf("[MAX30102] Interrupt!!!!!\n");
             m_dataReady = false;
             uint8_t int1 = m_sensor.getINT1();
             uint8_t int2 = m_sensor.getINT2();
-            // printf("Elapsed Time: %lu ms\n", (unsigned long)xTaskGetTickCount() * portTICK_PERIOD_MS);
+          //  printf("Elapsed Time: %lu ms\n", (unsigned long)xTaskGetTickCount() * portTICK_PERIOD_MS);
             int n = m_sensor.check();
-            //     printf("INT1=%02X INT2=%02X RP=%u WP=%u samples=%d\n",
+            // printf("INT1=%02X INT2=%02X RP=%u WP=%u samples=%d\n",
             //    int1,
             //    int2,
             //    m_sensor.getReadPointer(),
@@ -251,7 +251,7 @@ void MAX30102_manager::task()
                              &cmd,
                              0) == pdPASS)
         {
-            // printf("Receive command %d\n", cmd.type);
+        //    printf("Receive command %d\n", cmd.type);
             switch (cmd.type)
             {
 
@@ -340,7 +340,7 @@ void MAX30102_manager::task()
         }
 
         //-----------------------------------
-        // Đọc FIFO
+        // Äá»c FIFO
         //-----------------------------------
     }
 }

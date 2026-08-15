@@ -1,6 +1,6 @@
 #include "somniguard_dsp.h"
 
-// Hàm hỗ trợ sắp xếp nổi bọt ngắn phục vụ lọc Trung vị Hampel
+// HÃ m há»— trá»£ sáº¯p xáº¿p ná»•i bá»t ngáº¯n phá»¥c vá»¥ lá»c Trung vá»‹ Hampel
 static void sort_array_ascend(float *arr, int size)
 {
     for (int i = 0; i < size - 1; i++)
@@ -16,10 +16,10 @@ static void sort_array_ascend(float *arr, int size)
         }
     }
 }
-// HAMPEL FILTER — Loại bỏ nhiễu đỉnh đột biến (Motion Artifact)
+// HAMPEL FILTER â€” Loáº¡i bá» nhiá»…u Ä‘á»‰nh Ä‘á»™t biáº¿n (Motion Artifact)
 static float apply_hampel_filter(somniguard_dsp_t *dsp, float newValue)
 {
-    // Đẩy mẫu mới vào bộ đệm trượt 5 mẫu
+    // Äáº©y máº«u má»›i vÃ o bá»™ Ä‘á»‡m trÆ°á»£t 5 máº«u
     for (int i = 0; i < 4; ++i)
         dsp->buf_spo2[i] = dsp->buf_spo2[i + 1];
     dsp->buf_spo2[4] = newValue;
@@ -33,7 +33,7 @@ static float apply_hampel_filter(somniguard_dsp_t *dsp, float newValue)
         dev[i] = fabsf(dsp->buf_spo2[i] - median_M);
     sort_array_ascend(dev, 5);
     float mad = dev[2];
-    // Ngưỡng lọc nhiễu artifact đột biến (ngưỡng tối thiểu 2.5% cho phép rớt SpO2 sinh lý)
+    // NgÆ°á»¡ng lá»c nhiá»…u artifact Ä‘á»™t biáº¿n (ngÆ°á»¡ng tá»‘i thiá»ƒu 2.5% cho phÃ©p rá»›t SpO2 sinh lÃ½)
     float threshold = 3.0f * 1.4826f * mad;
     if (threshold < 2.5f)
         threshold = 2.5f;
@@ -45,8 +45,8 @@ static float apply_hampel_filter(somniguard_dsp_t *dsp, float newValue)
 }
 
 /**
- * @brief Khởi tạo/Reset toàn bộ bộ đệm và biến trạng thái của DSP Engine.
- * @param dsp Con trỏ tới struct somniguard_dsp_t
+ * @brief Khá»Ÿi táº¡o/Reset toÃ n bá»™ bá»™ Ä‘á»‡m vÃ  biáº¿n tráº¡ng thÃ¡i cá»§a DSP Engine.
+ * @param dsp Con trá» tá»›i struct somniguard_dsp_t
  */
 void somniguard_dsp_init(somniguard_dsp_t *dsp)
 {
@@ -57,8 +57,8 @@ void somniguard_dsp_init(somniguard_dsp_t *dsp)
 }
 
 /**
- * @brief Reset nhanh trạng thái khi phát hiện tuột/nhấc ngón tay khỏi sensor.
- * @param dsp Con trỏ tới struct somniguard_dsp_t
+ * @brief Reset nhanh tráº¡ng thÃ¡i khi phÃ¡t hiá»‡n tuá»™t/nháº¥c ngÃ³n tay khá»i sensor.
+ * @param dsp Con trá» tá»›i struct somniguard_dsp_t
  */
 void somniguard_dsp_reset(somniguard_dsp_t *dsp)
 {
@@ -96,10 +96,10 @@ void somniguard_dsp_reset(somniguard_dsp_t *dsp)
 }
 
 /**
- * @brief Cập nhật FSM bắt đáy sóng tính BPM cho từng mẫu AC IR (chạy mỗi mẫu 50Hz).
- * @param dsp Con trỏ tới struct somniguard_dsp_t
- * @param acIR_filtered Giá trị AC IR đã qua lọc IIR
- * @param timestamp_ms Thời gian hiện tại (ms)
+ * @brief Cáº­p nháº­t FSM báº¯t Ä‘Ã¡y sÃ³ng tÃ­nh BPM cho tá»«ng máº«u AC IR (cháº¡y má»—i máº«u 50Hz).
+ * @param dsp Con trá» tá»›i struct somniguard_dsp_t
+ * @param acIR_filtered GiÃ¡ trá»‹ AC IR Ä‘Ã£ qua lá»c IIR
+ * @param timestamp_ms Thá»i gian hiá»‡n táº¡i (ms)
  */
 void somniguard_dsp_update_bpm(somniguard_dsp_t *dsp, float acIR_filtered, uint32_t timestamp_ms)
 {
@@ -158,11 +158,11 @@ void somniguard_dsp_update_bpm(somniguard_dsp_t *dsp, float acIR_filtered, uint3
 }
 
 /**
- * @brief Tính toán SpO2 và R từ bộ đệm tròn khi đủ mẫu (DSP_WINDOW_SIZE = 128).
- * @param dsp Con trỏ tới struct somniguard_dsp_t
- * @param out_spo2 Con trỏ nhận giá trị SpO2 tính toán (%)
- * @param out_r Con trỏ nhận giá trị tỷ số Ratio-of-Ratios (R)
- * @return true nếu tính toán thành công, false nếu chưa đủ đệm hoặc tín hiệu lỗi
+ * @brief TÃ­nh toÃ¡n SpO2 vÃ  R tá»« bá»™ Ä‘á»‡m trÃ²n khi Ä‘á»§ máº«u (DSP_WINDOW_SIZE = 128).
+ * @param dsp Con trá» tá»›i struct somniguard_dsp_t
+ * @param out_spo2 Con trá» nháº­n giÃ¡ trá»‹ SpO2 tÃ­nh toÃ¡n (%)
+ * @param out_r Con trá» nháº­n giÃ¡ trá»‹ tá»· sá»‘ Ratio-of-Ratios (R)
+ * @return true náº¿u tÃ­nh toÃ¡n thÃ nh cÃ´ng, false náº¿u chÆ°a Ä‘á»§ Ä‘á»‡m hoáº·c tÃ­n hiá»‡u lá»—i
  */
 bool somniguard_dsp_calculate_spo2(somniguard_dsp_t *dsp, float *out_spo2, float *out_r)
 {
@@ -221,32 +221,32 @@ bool somniguard_dsp_calculate_spo2(somniguard_dsp_t *dsp, float *out_spo2, float
 }
 
 /**
- * @brief Hàm xử lý toàn bộ Pipeline cho 1 mẫu PPG thô (Red & IR).
- * @param dsp Con trỏ tới struct somniguard_dsp_t
- * @param raw_red Mẫu thô Red từ MAX30102 ADC
- * @param raw_ir Mẫu thô IR từ MAX30102 ADC
- * @param timestamp_ms Thời điểm lấy mẫu (ms)
- * @param result Con trỏ nhận kết quả xử lý (somniguard_dsp_result_t)
- * @return true nếu có kết quả SpO2 mới tại chu kỳ Stride (0.5s), false nếu chỉ cập nhật từng mẫu
+ * @brief HÃ m xá»­ lÃ½ toÃ n bá»™ Pipeline cho 1 máº«u PPG thÃ´ (Red & IR).
+ * @param dsp Con trá» tá»›i struct somniguard_dsp_t
+ * @param raw_red Máº«u thÃ´ Red tá»« MAX30102 ADC
+ * @param raw_ir Máº«u thÃ´ IR tá»« MAX30102 ADC
+ * @param timestamp_ms Thá»i Ä‘iá»ƒm láº¥y máº«u (ms)
+ * @param result Con trá» nháº­n káº¿t quáº£ xá»­ lÃ½ (somniguard_dsp_result_t)
+ * @return true náº¿u cÃ³ káº¿t quáº£ SpO2 má»›i táº¡i chu ká»³ Stride (0.5s), false náº¿u chá»‰ cáº­p nháº­t tá»«ng máº«u
  */
 bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint32_t raw_ir, uint32_t timestamp_ms, somniguard_dsp_result_t *result)
 {
     if (!dsp)
         return false;
-    // 1. KIỂM TRA HỞ SÁNG HOẶC NHẤC NGÓN TAY
-    if (raw_ir < 40000 || raw_red < 40000)
-    {
-        somniguard_dsp_reset(dsp);
-        if (result)
-        {
-            memset(result, 0, sizeof(somniguard_dsp_result_t));
-            result->signal_valid = false;
-        }
-        return false;
-    }
+    // // 1. KIá»‚M TRA Há»ž SÃNG HOáº¶C NHáº¤C NGÃ“N TAY
+    // if (raw_ir < 40000 || raw_red < 40000)
+    // {
+    //     somniguard_dsp_reset(dsp);
+    //     if (result)
+    //     {
+    //         memset(result, 0, sizeof(somniguard_dsp_result_t));
+    //         result->signal_valid = false;
+    //     }
+    //     return false;
+    // }
     float red_f = (float)raw_red;
     float ir_f = (float)raw_ir;
-    // 2. KHỞI TẠO ĐƯỜNG NỀN KHI VỪA ĐẶT TAY
+    // 2. KHá»žI Táº O ÄÆ¯á»œNG Ná»€N KHI Vá»ªA Äáº¶T TAY
     if (!dsp->is_finger_attached)
     {
         dsp->dc_track_red = red_f;
@@ -259,7 +259,7 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
         dsp->samples_since_last_beat = 0;
         return false;
     }
-    // 3. LỌC IIR SƠ CẤP (HPF + LPF)
+    // 3. Lá»ŒC IIR SÆ  Cáº¤P (HPF + LPF)
     float acRed_raw = red_f - dsp->dc_track_red;
     dsp->dc_track_red = (1.0f - HPF_ALPHA) * red_f + HPF_ALPHA * dsp->dc_track_red;
     float acIR_raw = ir_f - dsp->dc_track_ir;
@@ -268,9 +268,9 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
     dsp->lpf_red_prev = acRed_filtered;
     float acIR_filtered = (1.0f - LPF_BETA) * acIR_raw + LPF_BETA * dsp->lpf_ir_prev;
     dsp->lpf_ir_prev = acIR_filtered;
-    // 4. BPM FSM: CẬP NHẬT TỪNG MẪU
+    // 4. BPM FSM: Cáº¬P NHáº¬T Tá»ªNG MáºªU
     somniguard_dsp_update_bpm(dsp, acIR_filtered, timestamp_ms);
-    // 5. NẠP MẢNG VÒNG TRÒN
+    // 5. Náº P Máº¢NG VÃ’NG TRÃ’N
     uint16_t win_mask = DSP_WINDOW_SIZE - 1;
     dsp->history_sq_red[dsp->circular_index] = acRed_filtered * acRed_filtered;
     dsp->history_sq_ir[dsp->circular_index] = acIR_filtered * acIR_filtered;
@@ -283,7 +283,7 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
     {
         dsp->is_buffer_full = true;
     }
-    // 6. CHỈ TÍNH SPO2 KHI ĐỦ DSP_STRIDE MẪU (25 mẫu = 0.5s)
+    // 6. CHá»ˆ TÃNH SPO2 KHI Äá»¦ DSP_STRIDE MáºªU (25 máº«u = 0.5s)
     if (dsp->is_buffer_full && dsp->stride_counter >= DSP_STRIDE)
     {
         dsp->stride_counter = 0;

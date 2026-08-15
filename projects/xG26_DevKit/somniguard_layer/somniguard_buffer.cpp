@@ -67,24 +67,22 @@ somniguard_status_t somniguard_buffer_push_50hz(somniguard_buffer_t *buf, float 
     if (buf == NULL || ac_ir_norm == NULL)
         return SOMNIGUARD_ERR_INVALID_PARAM;
 
+    buf->ring_tensor[buf->head][0] = spo2;
+    buf->ring_tensor[buf->head][1] = bpm;
     for (int i = 0; i < FEATURE_RATE_IR_AC_HZ; i++)
     {
-        buf->ring_tensor[buf->head][0] = spo2;
-        buf->ring_tensor[buf->head][1] = bpm;
-        buf->ring_tensor[buf->head][2] = ac_ir_norm[i];
-        buf->ring_tensor[buf->head][3] = motion_level;
-
-        buf->head = (buf->head + 1) % TENSOR_MAX_ROWS;
+        if ((2 + i) < TENSOR_COLS) {
+            buf->ring_tensor[buf->head][2 + i] = ac_ir_norm[i];
+        }
     }
+    buf->ring_tensor[buf->head][27] = motion_level;
+
+    buf->head = (buf->head + 1) % TENSOR_MAX_ROWS;
 
     // Cập nhật số lượng mẫu và cờ đầy đệm
     if (buf->count < TENSOR_MAX_ROWS)
     {
-        buf->count += FEATURE_RATE_IR_AC_HZ;
-        if (buf->count > TENSOR_MAX_ROWS)
-        {
-            buf->count = TENSOR_MAX_ROWS;
-        }
+        buf->count++;
     }
 
     if (buf->count >= TENSOR_MAX_ROWS)
@@ -134,10 +132,15 @@ somniguard_status_t somniguard_buffer_get_ordered_tensor(const somniguard_buffer
     for (uint16_t i = 0; i < buf->count; i++)
     {
         uint16_t ring_idx = (start_index + i) % TENSOR_MAX_ROWS;
-        out_tensor->data[i][0] = buf->ring_tensor[ring_idx][0]; // SpO2 (1Hz hold)
-        out_tensor->data[i][1] = buf->ring_tensor[ring_idx][1]; // BPM (1Hz hold)
-        out_tensor->data[i][2] = buf->ring_tensor[ring_idx][2]; // PPG IR AC Norm (50Hz continuous)
-        out_tensor->data[i][3] = buf->ring_tensor[ring_idx][3]; // Motion Level (1Hz hold)
+        out_tensor->data[i][0] = buf->ring_tensor[ring_idx][0]; // SpO2
+        out_tensor->data[i][1] = buf->ring_tensor[ring_idx][1]; // BPM
+        for (int j = 0; j < FEATURE_RATE_IR_AC_HZ; j++)
+        {
+            if ((2 + j) < TENSOR_COLS) {
+                out_tensor->data[i][2 + j] = buf->ring_tensor[ring_idx][2 + j]; // 25 cột PPG IR AC Norm
+            }
+        }
+        out_tensor->data[i][27] = buf->ring_tensor[ring_idx][27]; // Motion Level
     }
 
     return SOMNIGUARD_OK;
@@ -174,7 +177,7 @@ somniguard_status_t somniguard_buffer_get_latest(const somniguard_buffer_t *buf,
     if (out_ac_ir_norm)
         *out_ac_ir_norm = buf->ring_tensor[latest_idx][2];
     if (out_motion)
-        *out_motion = buf->ring_tensor[latest_idx][3];
+        *out_motion = buf->ring_tensor[latest_idx][27];
 
     return SOMNIGUARD_OK;
 }

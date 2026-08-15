@@ -24,7 +24,7 @@ bool initMax30102(MAX30102_manager &MAX30102Sensor, int samplerate)
 
     if (!MAX30102Sensor.begin(&max30102I2CBus))
     {
-        // printf("Failed to initialize MAX30102!\r\n");
+        printf("Failed to initialize MAX30102!\r\n");
         return false;
     }
 
@@ -42,7 +42,7 @@ bool initIMU(IMU &imu, int samplerate)
     sl_status_t imu_status = imu.setup(samplerate, IMU_AVERAGING);
     if (imu_status != SL_STATUS_OK)
     {
-        // printf("Failed to initialize IMU!\r\n");
+        printf("Failed to initialize IMU!\r\n");
         return false;
     }
     return true;
@@ -61,8 +61,8 @@ bool SensorHub::initSensors(uint16_t sampleRate)
     this->max30102_freq = sampleRate * MAX30102_AVERAGING;
     if (initMax30102(this->m_max30102, sampleRate) && initIMU(this->m_imu, sampleRate))
     {
-        // Tạo interrupt task ngay từ đầu để driver I2C được xử lý đúng cách
-        // AGC sẽ đọc từ software buffer mà task này fill vào
+        // Táº¡o interrupt task ngay tá»« Ä‘áº§u Ä‘á»ƒ driver I2C Ä‘Æ°á»£c xá»­ lÃ½ Ä‘Ãºng cÃ¡ch
+        // AGC sáº½ Ä‘á»c tá»« software buffer mÃ  task nÃ y fill vÃ o
         xTaskCreate(MAX30102TaskINT, "MAX30102_Task", 256, (void *)&m_max30102, tskIDLE_PRIORITY + 3, &m_max30102TaskHandle);
         resetSensor();
         vTaskDelay(pdMS_TO_TICKS(10));
@@ -82,7 +82,7 @@ bool SensorHub::getPPGdata(sensor_hub_data_t *data)
     }
     if (m_imu.available() == 0)
     {
-        // Đã comment printf để tránh bị ngập lụt log khi bị lệch pha
+        // ÄÃ£ comment printf Ä‘á»ƒ trÃ¡nh bá»‹ ngáº­p lá»¥t log khi bá»‹ lá»‡ch pha
         // printf("\r\nNo data from IMU!\r\n");
         return false;
     }
@@ -106,55 +106,55 @@ bool SensorHub::getsensordata(sensor_hub_data_t *data)
         return false;
     imu_data_float_t imu_out;
 
-    // --- ĐỒNG BỘ HÓA (RESYNC) THỜI GIAN THỰC ---
-    // Đặt ngưỡng xả là 30 mẫu vì MAX30102 đọc data theo cục (Burst Read ~25 mẫu/ngắt).
-    // Nếu chênh lệch < 30 thì chỉ là do lệch pha đọc, nhưng nếu > 30 chắc chắn là do Clock Drift.
+    // --- Äá»’NG Bá»˜ HÃ“A (RESYNC) THá»œI GIAN THá»°C ---
+    // Äáº·t ngÆ°á»¡ng xáº£ lÃ  30 máº«u vÃ¬ MAX30102 Ä‘á»c data theo cá»¥c (Burst Read ~25 máº«u/ngáº¯t).
+    // Náº¿u chÃªnh lá»‡ch < 30 thÃ¬ chá»‰ lÃ  do lá»‡ch pha Ä‘á»c, nhÆ°ng náº¿u > 30 cháº¯c cháº¯n lÃ  do Clock Drift.
     const int THRESHOLD = 30;
 
-    // Biến static để lưu thời điểm xả mẫu lần trước (tính bằng ms)
+    // Biáº¿n static Ä‘á»ƒ lÆ°u thá»i Ä‘iá»ƒm xáº£ máº«u láº§n trÆ°á»›c (tÃ­nh báº±ng ms)
     static uint32_t last_imu_discard_time = 0;
     static uint32_t last_max_discard_time = 0;
 
-    // Nếu IMU chạy nhanh hơn và đọng nhiều hơn MAX30102
+    // Náº¿u IMU cháº¡y nhanh hÆ¡n vÃ  Ä‘á»ng nhiá»u hÆ¡n MAX30102
     int imu_discard_count = 0;
     while ((int)m_imu.available() - (int)m_max30102.available() > THRESHOLD)
     {
         imu_data_float_t trash;
-        m_imu.IMU_getfifo(&trash); // Xả bỏ 1 mẫu cũ nhất của IMU
+        m_imu.IMU_getfifo(&trash); // Xáº£ bá» 1 máº«u cÅ© nháº¥t cá»§a IMU
         imu_discard_count++;
     }
     if (imu_discard_count > 0)
     {
         uint32_t current_time = xTaskGetTickCount();
         uint32_t diff = (last_imu_discard_time == 0) ? 0 : (current_time - last_imu_discard_time);
-        // printf("\r\n[RESYNC] IMU too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", imu_discard_count, diff);
+        printf("\r\n[RESYNC] IMU too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", imu_discard_count, diff);
         last_imu_discard_time = current_time;
     }
 
-    // Nếu MAX30102 chạy nhanh hơn IMU
+    // Náº¿u MAX30102 cháº¡y nhanh hÆ¡n IMU
     int max_discard_count = 0;
     while ((int)m_max30102.available() - (int)m_imu.available() > THRESHOLD)
     {
-        m_max30102.nextSample(); // Xả bỏ 1 mẫu cũ nhất của MAX
+        m_max30102.nextSample(); // Xáº£ bá» 1 máº«u cÅ© nháº¥t cá»§a MAX
         max_discard_count++;
     }
     if (max_discard_count > 0)
     {
         uint32_t current_time = xTaskGetTickCount();
         uint32_t diff = (last_max_discard_time == 0) ? 0 : (current_time - last_max_discard_time);
-        // printf("\r\n[RESYNC] MAX30102 too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", max_discard_count, diff);
+        printf("\r\n[RESYNC] MAX30102 too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", max_discard_count, diff);
         last_max_discard_time = current_time;
     }
     // ------------------------------------------
 
     if (m_max30102.available() == 0)
     {
-        // printf("\r\nNo data from MAX30102!\r\n");
+        printf("\r\nNo data from MAX30102!\r\n");
         return false;
     }
     if (m_imu.available() == 0)
     {
-        // Đã comment printf để tránh bị ngập lụt log khi bị lệch pha
+        // ÄÃ£ comment printf Ä‘á»ƒ trÃ¡nh bá»‹ ngáº­p lá»¥t log khi bá»‹ lá»‡ch pha
         // printf("\r\nNo data from IMU!\r\n");
         return false;
     }
@@ -206,32 +206,32 @@ void SensorHub::resumeInterruptTask()
 
 void SensorHub::agcAmplitudeLed()
 {
-    // KHÔNG suspend interrupt task - để task đó tiếp tục fill software buffer qua I2C
-    // AGC chỉ đọc từ software buffer (thread-safe) và queue LED commands cho task xử lý
+    // KHÃ”NG suspend interrupt task - Ä‘á»ƒ task Ä‘Ã³ tiáº¿p tá»¥c fill software buffer qua I2C
+    // AGC chá»‰ Ä‘á»c tá»« software buffer (thread-safe) vÃ  queue LED commands cho task xá»­ lÃ½
 
     uint32_t full_scale_adc = m_max30102.getADCrange();
     if (full_scale_adc == 0)
     {
         full_scale_adc = 262143; // 18-bit ADC fallback
     }
-    // printf("[AGC] Max ADC range: %lu\r\n", (unsigned long)full_scale_adc);
+    printf("[AGC] Max ADC range: %lu\r\n", (unsigned long)full_scale_adc);
 
     const uint32_t FINGER_THRESHOLD = 30000;
     const uint32_t TARGET_MIN = (uint32_t)(0.40f * full_scale_adc);
     const uint32_t TARGET_MAX = (uint32_t)(0.60f * full_scale_adc);
     const uint32_t HIGH_SATURATION = (uint32_t)(0.90f * full_scale_adc);
 
-    // Khởi tạo dòng LED ban đầu qua manager queue (interrupt task sẽ ghi xuống hardware)
+    // Khá»Ÿi táº¡o dÃ²ng LED ban Ä‘áº§u qua manager queue (interrupt task sáº½ ghi xuá»‘ng hardware)
     uint8_t current_red_amp = 60;
     uint8_t current_ir_amp = 60;
     m_max30102.setPulseAmplitudeRed(current_red_amp);
     m_max30102.setPulseAmplitudeIR(current_ir_amp);
-    // Xả FIFO qua manager (interrupt task xử lý) để bắt đầu từ trạng thái sạch
+    // Xáº£ FIFO qua manager (interrupt task xá»­ lÃ½) Ä‘á»ƒ báº¯t Ä‘áº§u tá»« tráº¡ng thÃ¡i sáº¡ch
     m_max30102.clearFIFO();
     m_max30102.setSampleRate(this->max30102_freq);
 
-    // 1. Chờ interrupt task đọc đủ dữ liệu và phát hiện tay đặt vào
-    // printf("[AGC] Waiting for finger to be placed on sensor...\r\n");
+    // 1. Chá» interrupt task Ä‘á»c Ä‘á»§ dá»¯ liá»‡u vÃ  phÃ¡t hiá»‡n tay Ä‘áº·t vÃ o
+    printf("[AGC] Waiting for finger to be placed on sensor...\r\n");
 
     uint32_t wait_print_counter = 0;
     while (true)
@@ -248,8 +248,8 @@ void SensorHub::agcAmplitudeLed()
 
             if (checkIR >= FINGER_THRESHOLD || checkRed >= FINGER_THRESHOLD)
             {
-                // printf("[AGC] Finger detected! (IR: %lu, RED: %lu). Starting AGC calibration...\r\n",
-                //        (unsigned long)checkIR, (unsigned long)checkRed);
+                printf("[AGC] Finger detected! (IR: %lu, RED: %lu). Starting AGC calibration...\r\n",
+                       (unsigned long)checkIR, (unsigned long)checkRed);
                 m_max30102.clearFIFO();
                 m_max30102.setSampleRate(this->max30102_freq);
                 vTaskDelay(pdMS_TO_TICKS(100));
@@ -258,23 +258,23 @@ void SensorHub::agcAmplitudeLed()
 
             if (++wait_print_counter % 10 == 0)
             {
-                // printf("[AGC] Waiting for finger... (IR: %lu, RED: %lu < %lu)\r\n",
-                //        (unsigned long)checkIR, (unsigned long)checkRed,
-                //        (unsigned long)FINGER_THRESHOLD);
+                printf("[AGC] Waiting for finger... (IR: %lu, RED: %lu < %lu)\r\n",
+                       (unsigned long)checkIR, (unsigned long)checkRed,
+                       (unsigned long)FINGER_THRESHOLD);
             }
         }
         else
         {
             if (++wait_print_counter % 10 == 0)
             {
-                // printf("[AGC] Waiting for sensor data...\r\n");
+                printf("[AGC] Waiting for sensor data...\r\n");
             }
         }
     }
 
-    // 2. AGC Calibration - đọc từ software buffer, queue LED commands cho interrupt task
-    // printf("[AGC] Calibrating LED amplitudes (Target: %lu - %lu)...\r\n",
-    //        (unsigned long)TARGET_MIN, (unsigned long)TARGET_MAX);
+    // 2. AGC Calibration - Ä‘á» c tá»« software buffer, queue LED commands cho interrupt task
+    printf("[AGC] Calibrating LED amplitudes (Target: %lu - %lu)...\r\n",
+           (unsigned long)TARGET_MIN, (unsigned long)TARGET_MAX);
 
     uint32_t stable_count = 0;
     const uint32_t MAX_AGC_ITERATIONS = 60;
@@ -291,9 +291,9 @@ void SensorHub::agcAmplitudeLed()
             continue;
         }
 
-        // Đọc mẫu cuối cùng trong buffer (đã được interrupt task fill)
+        // Äá»c máº«u cuá»‘i cÃ¹ng trong buffer (Ä‘Ã£ Ä‘Æ°á»£c interrupt task fill)
         uint32_t ppgRed = 0, ppgIR = 0;
-        // Xả hết trừ 1 mẫu cuối để lấy giá trị mới nhất
+        // Xáº£ háº¿t trá»« 1 máº«u cuá»‘i Ä‘á»ƒ láº¥y giÃ¡ trá»‹ má»›i nháº¥t
         while (m_max30102.available() > 1)
         {
             m_max30102.nextSample();
@@ -304,7 +304,7 @@ void SensorHub::agcAmplitudeLed()
 
         if (ppgIR < FINGER_THRESHOLD && ppgRed < FINGER_THRESHOLD)
         {
-            // printf("[AGC] Finger removed! Pausing...\r\n");
+            printf("[AGC] Finger removed! Pausing...\r\n");
             stable_count = 0;
             vTaskDelay(pdMS_TO_TICKS(1000));
             continue;
@@ -313,16 +313,16 @@ void SensorHub::agcAmplitudeLed()
         bool is_red_ok = (ppgRed >= TARGET_MIN && ppgRed <= TARGET_MAX);
         bool is_ir_ok = (ppgIR >= TARGET_MIN && ppgIR <= TARGET_MAX);
 
-        // printf("[AGC #%lu] RED=%lu (Amp=0x%02X) IR=%lu (Amp=0x%02X)\r\n",
-        //        (unsigned long)iteration, (unsigned long)ppgRed, current_red_amp,
-        //        (unsigned long)ppgIR, current_ir_amp);
+        printf("[AGC #%lu] RED=%lu (Amp=0x%02X) IR=%lu (Amp=0x%02X)\r\n",
+               (unsigned long)iteration, (unsigned long)ppgRed, current_red_amp,
+               (unsigned long)ppgIR, current_ir_amp);
 
         if (is_red_ok && is_ir_ok)
         {
             stable_count++;
             if (stable_count >= 3)
             {
-                // printf("[AGC] CONVERGED & STABLE!\r\n");
+                printf("[AGC] CONVERGED & STABLE!\r\n");
                 break;
             }
         }
@@ -333,7 +333,7 @@ void SensorHub::agcAmplitudeLed()
 
         bool changed = false;
 
-        // Điều chỉnh RED
+        // Äiá»u chá»‰nh RED
         if (ppgRed > HIGH_SATURATION && current_red_amp > 5)
         {
             current_red_amp = (current_red_amp > 15) ? (current_red_amp - 10) : 1;
@@ -352,7 +352,7 @@ void SensorHub::agcAmplitudeLed()
             changed = true;
         }
 
-        // Điều chỉnh IR
+        // Äiá»u chá»‰nh IR
         if (ppgIR > HIGH_SATURATION && current_ir_amp > 5)
         {
             current_ir_amp = (current_ir_amp > 15) ? (current_ir_amp - 10) : 1;
@@ -373,13 +373,13 @@ void SensorHub::agcAmplitudeLed()
 
         if (changed)
         {
-            // Queue lệnh qua manager - interrupt task sẽ apply vào hardware và clearFIFO tự động
+            // Queue lá»‡nh qua manager - interrupt task sáº½ apply vÃ o hardware vÃ  clearFIFO tá»± Ä‘á»™ng
             m_max30102.setPulseAmplitudeRed(current_red_amp);
             m_max30102.setPulseAmplitudeIR(current_ir_amp);
         }
     }
 
-    // printf("[AGC] DONE: RED Amp=0x%02X, IR Amp=0x%02X\r\n",
-    //        current_red_amp, current_ir_amp);
-    // Interrupt task vẫn đang chạy, không cần resume
+    printf("[AGC] DONE: RED Amp=0x%02X, IR Amp=0x%02X\r\n",
+           current_red_amp, current_ir_amp);
+    // Interrupt task váº«n Ä‘ang cháº¡y, khÃ´ng cáº§n resume
 }

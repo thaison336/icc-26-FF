@@ -1,6 +1,6 @@
 #include "i2c_ctl.h"
 #include "stdio.h"
-// Đã sửa lại tên class I2CBus cho liền mạch
+// ÄÃ£ sá»­a láº¡i tÃªn class I2CBus cho liá»n máº¡ch
 I2CBus::I2CBus(I2C_TypeDef *i2c)
 {
     m_i2c = i2c;
@@ -20,21 +20,21 @@ bool I2CBus::transfer(I2C_TransferSeq_TypeDef &seq)
     {
         status = I2C_Transfer(m_i2c);
 
-        // Timeout bảo vệ chống treo (5ms)
+        // Timeout báº£o vá»‡ chá»‘ng treo (5ms)
         if ((xTaskGetTickCount() - start) > pdMS_TO_TICKS(50))
         {
             xSemaphoreGive(m_mutex);
             return false;
         }
 
-        // Nhường CPU cho task khác có cùng mức ưu tiên
+        // NhÆ°á»ng CPU cho task khÃ¡c cÃ³ cÃ¹ng má»©c Æ°u tiÃªn
         // taskYIELD();
     }
 
     xSemaphoreGive(m_mutex);
     if (status != i2cTransferDone)
 {
-    // printf("I2C status = %d\n", status);
+    //printf("I2C status = %d\n", status);
 }
     return (status == i2cTransferDone);
 }
@@ -51,8 +51,8 @@ bool I2CBus::writeRegister8(uint8_t addr,
                             uint8_t reg,
                             uint8_t value)
 {
-    // Dữ liệu tx nằm trên stack nhưng hàm write (và transfer) 
-    // là đồng bộ (chặn cho đến khi xong), nên việc này hoàn toàn an toàn.
+    // Dá»¯ liá»‡u tx náº±m trÃªn stack nhÆ°ng hÃ m write (vÃ  transfer) 
+    // lÃ  Ä‘á»“ng bá»™ (cháº·n cho Ä‘áº¿n khi xong), nÃªn viá»‡c nÃ y hoÃ n toÃ n an toÃ n.
     //printf("[I2CBus] Writing register 0x%02X to address 0x%02X\n", reg, addr);
     uint8_t tx[2] = {reg, value};
     return write(addr, tx, 2);
