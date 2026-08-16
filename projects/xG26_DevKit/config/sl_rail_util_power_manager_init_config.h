@@ -42,3 +42,4 @@
 // </h>
 // <<< end of configuration section >>>
 #endif // SL_RAIL_UTIL_POWER_MANAGER_INIT_CONFIG_H
+

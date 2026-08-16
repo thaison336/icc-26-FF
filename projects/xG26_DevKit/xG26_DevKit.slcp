@@ -37,7 +37,7 @@ sdk:
   vendor: silabs
   id: simplicity_sdk
   version: 2026.6.1
-toolchain_settings: 
+toolchain_settings:
 - value: -mfp16-format=ieee
   option: gcc_compiler_option
 component:
@@ -48,7 +48,7 @@ component:
   id: ml_model
 - package: simplicity_sdk
   vendor: silabs
-  id: EFR32MG26B510F3200IM68
+  id: EFR32MG26B510F3200IM48
 - package: simplicity_sdk
   vendor: silabs
   id: bluetooth_feature_connection
@@ -66,7 +66,7 @@ component:
   id: bluetooth_rtos_adaptation
 - package: simplicity_sdk
   vendor: silabs
-  id: brd2608a
+  id: brd2709a
 - package: simplicity_sdk
   vendor: silabs
   id: clock_manager
@@ -208,7 +208,7 @@ autoselected_components:
   id: board_control
 - package: simplicity_sdk
   vendor: silabs
-  id: brd2608a_config
+  id: brd2709a_config
 - package: simplicity_sdk
   vendor: silabs
   id: clock_manager_init_hal_s2
@@ -479,9 +479,6 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: memory_profiler_api
-- package: simplicity_sdk
-  vendor: silabs
-  id: mx25_flash_shutdown_eusart
 - package: simplicity_sdk
   vendor: silabs
   id: power_manager

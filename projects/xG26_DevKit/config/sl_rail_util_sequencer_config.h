@@ -44,3 +44,4 @@ extern "C" {
 #endif
 
 #endif // SL_RAIL_UTIL_SEQUENCER_H
+

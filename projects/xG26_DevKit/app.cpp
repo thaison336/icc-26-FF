@@ -173,30 +173,26 @@ void DataProcessingTask(void *pvParameters)
 // Mặc định 10% -> Tiết kiệm pin tối đa và dịu mắt khi đeo ngủ ban đêm
 
 #define SYSTEM_STATUS_LED_BRIGHTNESS_PERCENT 10
-// Task nhấp nháy TẤT CẢ các chân LED / RGB LED trên kit BRD2608A Rev A04
-// - PA04: RGB Red | PB00: RGB Green | PB02: RGB Blue | PB04: LED0 | PB05: LED1
+// Task nhấp nháy LED trên chân PC08 và PC09
 void LedBlinkyTask(void *pvParameters)
 {
     (void)pvParameters;
 
     // Cấu hình tất cả các chân LED làm Output Push-Pull
-    GPIO_PinModeSet(gpioPortA, 4, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortB, 0, gpioModePushPull, 1);
-    GPIO_PinModeSet(gpioPortB, 2, gpioModePushPull, 1);
+    GPIO_PinModeSet(gpioPortC, 8, gpioModePushPull, 1);
+    GPIO_PinModeSet(gpioPortC, 9, gpioModePushPull, 1);
 
     while (1)
     {
-        // 1. Kéo xuống LOW (Mạch Active-Low trên BRD2608A: Pull 0 = SÁNG TẤT CẢ LED)
-        GPIO_PinOutClear(gpioPortA, 4);
-        GPIO_PinOutClear(gpioPortB, 0);
-        GPIO_PinOutClear(gpioPortB, 2);
+        // 1. Kéo xuống LOW
+        GPIO_PinOutClear(gpioPortC, 8);
+        GPIO_PinOutClear(gpioPortC, 9);
 
         vTaskDelay(pdMS_TO_TICKS(500));
 
-        // 2. Kéo lên HIGH (Pull 1 = TẮT TẤT CẢ LED)
-        GPIO_PinOutSet(gpioPortA, 4);
-        GPIO_PinOutSet(gpioPortB, 0);
-        GPIO_PinOutSet(gpioPortB, 2);
+        // 2. Kéo lên HIGH
+        GPIO_PinOutSet(gpioPortC, 8);
+        GPIO_PinOutSet(gpioPortC, 9);
 
         vTaskDelay(pdMS_TO_TICKS(500));
     }

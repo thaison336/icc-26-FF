@@ -374,3 +374,4 @@
 // <<< sl:end pin_tool >>>
 
 #endif /* SL_CLOCK_MANAGER_OSCILLATOR_CONFIG_H */
+

@@ -25,8 +25,6 @@ add_executable(xG26_Devkit
     ../somniguard_layer/somniguard_fsm.cpp
     ../other_driver/ble_notification_manager.cpp
     ../other_driver/actuators_bsp.cpp
-    ../model/Interpreter.cpp
-    ../model/ppg_compress_stat7.c
 )
 
 target_include_directories(xG26_Devkit PUBLIC

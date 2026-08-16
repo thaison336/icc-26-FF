@@ -102,37 +102,38 @@
 #define SL_UARTDRV_EUSART_VCOM_PERIPHERAL_NO     0
 #endif
 
-// EUSART0 TX on PA05
+// EUSART0 TX on PB02
 #ifndef SL_UARTDRV_EUSART_VCOM_TX_PORT          
-#define SL_UARTDRV_EUSART_VCOM_TX_PORT           SL_GPIO_PORT_A
+#define SL_UARTDRV_EUSART_VCOM_TX_PORT           SL_GPIO_PORT_B
 #endif
 #ifndef SL_UARTDRV_EUSART_VCOM_TX_PIN           
-#define SL_UARTDRV_EUSART_VCOM_TX_PIN            5
+#define SL_UARTDRV_EUSART_VCOM_TX_PIN            2
 #endif
 
-// EUSART0 RX on PA06
+// EUSART0 RX on PB03
 #ifndef SL_UARTDRV_EUSART_VCOM_RX_PORT          
-#define SL_UARTDRV_EUSART_VCOM_RX_PORT           SL_GPIO_PORT_A
+#define SL_UARTDRV_EUSART_VCOM_RX_PORT           SL_GPIO_PORT_B
 #endif
 #ifndef SL_UARTDRV_EUSART_VCOM_RX_PIN           
-#define SL_UARTDRV_EUSART_VCOM_RX_PIN            6
+#define SL_UARTDRV_EUSART_VCOM_RX_PIN            3
 #endif
 
-// EUSART0 CTS on PA09
+// EUSART0 CTS on PA06
 #ifndef SL_UARTDRV_EUSART_VCOM_CTS_PORT         
 #define SL_UARTDRV_EUSART_VCOM_CTS_PORT          SL_GPIO_PORT_A
 #endif
 #ifndef SL_UARTDRV_EUSART_VCOM_CTS_PIN          
-#define SL_UARTDRV_EUSART_VCOM_CTS_PIN           9
+#define SL_UARTDRV_EUSART_VCOM_CTS_PIN           6
 #endif
 
-// EUSART0 RTS on PA08
+// EUSART0 RTS on PA00
 #ifndef SL_UARTDRV_EUSART_VCOM_RTS_PORT         
 #define SL_UARTDRV_EUSART_VCOM_RTS_PORT          SL_GPIO_PORT_A
 #endif
 #ifndef SL_UARTDRV_EUSART_VCOM_RTS_PIN          
-#define SL_UARTDRV_EUSART_VCOM_RTS_PIN           8
+#define SL_UARTDRV_EUSART_VCOM_RTS_PIN           0
 #endif
 // [EUSART_SL_UARTDRV_EUSART_VCOM]$
 // <<< sl:end pin_tool >>>
 #endif // SL_UARTDRV_EUSART_VCOM_CONFIG_H
+

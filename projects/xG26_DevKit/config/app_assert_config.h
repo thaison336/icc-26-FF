@@ -66,3 +66,4 @@
 // <<< end of configuration section >>>
 
 #endif // APP_ASSERT_CONFIG_H
+

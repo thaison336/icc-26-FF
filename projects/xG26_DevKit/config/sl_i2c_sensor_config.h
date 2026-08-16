@@ -3,7 +3,7 @@
  * @brief I2C Config
  *******************************************************************************
  * # License
- * <b>Copyright 2024 Silicon Laboratories Inc. www.silabs.com</b>
+ * <b>Copyright 2025 Silicon Laboratories Inc. www.silabs.com</b>
  *******************************************************************************
  *
  * SPDX-License-Identifier: Zlib
@@ -54,29 +54,18 @@
 // <<< sl:start pin_tool >>>
 // <i2c signal=SCL,SDA> SL_I2C_SENSOR
 // $[I2C_SL_I2C_SENSOR]
-#ifndef SL_I2C_SENSOR_PERIPHERAL                
-#define SL_I2C_SENSOR_PERIPHERAL                 I2C1
-#endif
-#ifndef SL_I2C_SENSOR_PERIPHERAL_NO             
-#define SL_I2C_SENSOR_PERIPHERAL_NO              1
-#endif
+// #warning "I2C peripheral not configured"
+#define SL_I2C_SENSOR_PERIPHERAL                 I2C0
+#define SL_I2C_SENSOR_PERIPHERAL_NO              0
 
-// I2C1 SCL on PC04
-#ifndef SL_I2C_SENSOR_SCL_PORT                  
-#define SL_I2C_SENSOR_SCL_PORT                   SL_GPIO_PORT_C
-#endif
-#ifndef SL_I2C_SENSOR_SCL_PIN                   
-#define SL_I2C_SENSOR_SCL_PIN                    4
-#endif
+#define SL_I2C_SENSOR_SCL_PORT        SL_GPIO_PORT_C
+#define SL_I2C_SENSOR_SCL_PIN         5
 
-// I2C1 SDA on PC05
-#ifndef SL_I2C_SENSOR_SDA_PORT                  
-#define SL_I2C_SENSOR_SDA_PORT                   SL_GPIO_PORT_C
-#endif
-#ifndef SL_I2C_SENSOR_SDA_PIN                   
-#define SL_I2C_SENSOR_SDA_PIN                    5
-#endif
+#define SL_I2C_SENSOR_SDA_PORT        SL_GPIO_PORT_C
+#define SL_I2C_SENSOR_SDA_PIN         7
+
 // [I2C_SL_I2C_SENSOR]$
 // <<< sl:end pin_tool >>>
 
 #endif // SL_I2C_SENSOR_CONFIG_H
+

@@ -42,3 +42,4 @@
 #endif
 
 #endif // SL_BT_RTOS_CONFIG_H
+
