@@ -754,14 +754,20 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 }
                 else if (elapsed_in_sub >= FSM_EVALUATE_TIMEOUT_MS)
                 {
-                    // Háº¿t thá»i gian Ä‘Ã¡nh giÃ¡ mÃ  chÆ°a khÃ´i phá»¥c -> TÄƒng cáº¥p Ä‘á»™ can thiá»‡p
-                    if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL || fsm->dsp_res.spo2 < 85.0f)
+                    if (last_executed_intervention == SUB_INTERVENT_MILD_VIBRATE)
                     {
+                        // Cấp 1 không hiệu quả -> Leo thang lên Cấp 2 (Strong Vibrate)
+                        somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
+                    }
+                    else if (last_executed_intervention == SUB_INTERVENT_STRONG_VIBRATE)
+                    {
+                        // Cấp 2 không hiệu quả -> Leo thang lên Cấp 3 (BLE Alarm SOS)
                         somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_BLE_ALARM);
                     }
-                    else
+                    else // Đã ở cấp 3 nhưng vẫn chưa hồi phục
                     {
-                        somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
+                        // Tiếp tục lặp lại cấp 3 để cảnh báo cứu hộ khẩn cấp
+                        somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_BLE_ALARM);
                     }
                 }
                 break;
