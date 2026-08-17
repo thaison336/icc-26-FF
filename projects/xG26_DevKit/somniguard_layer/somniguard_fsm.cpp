@@ -620,7 +620,7 @@ void somniguard_fsm_task(void *pvParameters)
                 break;
             }
 
-            // Khi ngÆ°á»i dÃ¹ng thá»©c dáº­y (cá»±a quáº­y liÃªn tá»¥c 15s) -> chuyá»ƒn ACTIVE MODE
+            // Khi ngÆ°á» i dÃ¹ng thá»©c dáº­y (cá»±a quáº­y liÃªn tá»¥c 15s) -> chuyá»ƒn ACTIVE MODE
             if (fsm->wake_motion_start_ms > 0 &&
                 (timestamp_ms - fsm->wake_motion_start_ms >= FSM_WAKE_MOTION_TIME_MS))
             {
@@ -632,7 +632,7 @@ void somniguard_fsm_task(void *pvParameters)
                 break;
             }
 
-            // Phá»¥c há»“i tá»‘t: SpO2 khÃ´i phá»¥c >= 95% vÃ  sub_state vá» IDLE -> NORMAL_SLEEP
+            // Phá»¥c há»“i tá»‘t: SpO2 khÃ´i phá»¥c >= 95% vÃ  sub_state vá»  IDLE -> NORMAL_SLEEP
             if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f && fsm->sub_state == SUB_INTERVENT_IDLE)
             {
                 uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
@@ -640,7 +640,7 @@ void somniguard_fsm_task(void *pvParameters)
                 fsm->top_state = FSM_TOP_NORMAL_SLEEP;
                 fsm->top_state_entry_ms = now_ms;
 
-                // Reset sub-state vá» BUFFERING Ä‘á»ƒ tÃ­ch lÅ©y láº¡i baseline SpO2 sau can thiá»‡p
+                // Reset sub-state vá»  BUFFERING Ä‘á»ƒ tÃ­ch lÅ©y láº¡i baseline SpO2 sau can thiá»‡p
                 fsm->normal_state = SUB_SLEEP_BUFFERING;
                 fsm->sleep_buffering_entry_done = false;
                 fsm->anomaly_detect_ms = 0;
@@ -666,6 +666,9 @@ void somniguard_deep_analysis_task(void *pvParameters)
     }
     printf("--- FSM Deep Analysis Task Started ---\r\n");
 
+    // Biến lưu lại cấp can thiệp vừa thực thi để leo thang bậc thang nếu không hồi phục
+    static somniguard_sub_fsm_state_t last_executed_intervention = SUB_INTERVENT_IDLE;
+
     while (1)
     {
         if (fsm->top_state == FSM_TOP_DEEP_ANALYSIS)
@@ -676,29 +679,30 @@ void somniguard_deep_analysis_task(void *pvParameters)
             switch (fsm->sub_state)
             {
             case SUB_INTERVENT_IDLE:
-                // ÄÃ¡nh giÃ¡ má»©c Ä‘á»™ nghi ngá» Ä‘á»ƒ chá»n cáº¥p Ä‘á»™ can thiá»‡p ban Ä‘áº§u
-                // Cáº­p nháº­t káº¿t quáº£ cháº©n Ä‘oÃ¡n AI
+                // 1. Chạy AI Model từ bộ đệm Tensor
                 if (fsm->buffer_pro.is_full)
                 {
                     fsm->last_ai_event = somniguard_ai_predict(&fsm->buffer_pro);
                 }
 
-                if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL || fsm->dsp_res.spo2 < 82.0f)
+                // 2. Quyết định cấp can thiệp khởi phát ban đầu dựa trên chẩn đoán AI & SpO2
+                if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL || fsm->dsp_res.spo2 < 85.0f)
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_BLE_ALARM);
                 }
-                else if (fsm->last_ai_event == AI_EVENT_APNEA_SEVERE || fsm->dsp_res.spo2 < 88.0f)
+                else if (fsm->last_ai_event == AI_EVENT_APNEA_SEVERE || fsm->dsp_res.spo2 < 90.0f)
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
                 }
-                else if (fsm->last_ai_event == AI_EVENT_APNEA_MILD || fsm->last_ai_event == AI_EVENT_HYPOPNIA || fsm->dsp_res.spo2 < 93.0f)
+                else // AI_EVENT_APNEA_MILD, AI_EVENT_HYPOPNIA, hoặc SpO2 < 93.0%
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_MILD_VIBRATE);
                 }
                 break;
 
             case SUB_INTERVENT_MILD_VIBRATE:
-                // Rung nháº¹ cáº¥p 1 (3 giÃ¢y)
+                // Cấp 1: Rung nhẹ 20% (3 giây)
+                last_executed_intervention = SUB_INTERVENT_MILD_VIBRATE;
                 fsm->vibrate_level = 1;
                 fsm->buzzer_alarm = false;
                 fsm->ble_sos_flag = false;
@@ -710,9 +714,11 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 break;
 
             case SUB_INTERVENT_STRONG_VIBRATE:
-                // Rung máº¡nh cáº¥p 2 (5 giÃ¢y)
+                // Cấp 2: Rung mạnh 80% (5 giây)
+                last_executed_intervention = SUB_INTERVENT_STRONG_VIBRATE;
                 fsm->vibrate_level = 2;
                 fsm->buzzer_alarm = false;
+                fsm->ble_sos_flag = false;
 
                 if (elapsed_in_sub >= FSM_STRONG_VIB_DURATION_MS)
                 {
@@ -721,12 +727,13 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 break;
 
             case SUB_INTERVENT_BLE_ALARM:
-                // Nguy cáº¥p: Rung máº¡nh + CÃ²i bÃ¡o Ä‘á»™ng + PhÃ¡t BLE SOS cá»©u há»™
+                // Cấp 3: Nguy cấp (Rung mạnh + Còi báo động + Phát BLE SOS cứu hộ)
+                last_executed_intervention = SUB_INTERVENT_BLE_ALARM;
                 fsm->vibrate_level = 2;
                 fsm->buzzer_alarm = true;
                 fsm->ble_sos_flag = true;
 
-                // Náº¿u ngÆ°á»i dÃ¹ng giáº­t mÃ¬nh cá»±a quáº­y hoáº·c SpO2 há»“i phá»¥c -> chuyá»ƒn sang Ä‘Ã¡nh giÃ¡
+                // Nếu người dùng giật mình cựa quậy hoặc SpO2 hồi phục -> chuyển sang đánh giá
                 if (fsm->motion_res.is_moving || (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 90.0f))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
@@ -734,11 +741,12 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 break;
 
             case SUB_INTERVENT_EVALUATE_RECOVERY:
-                // Táº¯t rung Ä‘á»ƒ theo dÃµi Ä‘Ã¡p á»©ng sinh lÃ½
+                // Tắt rung để cảm biến theo dõi đáp ứng sinh lý chính xác
                 fsm->vibrate_level = 0;
                 fsm->buzzer_alarm = false;
                 fsm->ble_sos_flag = false;
-                // ÄÃ¡nh giÃ¡ chá»‰ sá»‘ phá»¥c há»“i sau can thiá»‡p (10 giÃ¢y)
+
+                // A. Kiểm tra hồi phục thành công (SpO2 >= 95%)
                 if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f)
                 {
                     // ÄÃ£ khÃ´i phá»¥c thÃ nh cÃ´ng -> Vá» IDLE (Top-FSM sáº½ chuyá»ƒn sang NORMAL_SLEEP)
