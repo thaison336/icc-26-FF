@@ -91,6 +91,29 @@ bool somniguard_ble_send_sos_msg(void)
 #endif
 }
 
+void somniguard_ble_send_string(const char* str)
+{
+#if defined(gattdb_wearable_data)
+    if (str == NULL) return;
+    
+    if (active_connection_handle != 0xFF && app_is_subscribed)
+    {
+        sl_bt_gatt_server_send_notification(
+            active_connection_handle,
+            gattdb_wearable_data,
+            strlen(str),
+            (const uint8_t *)str);
+    }
+    else
+    {
+        sl_bt_gatt_server_notify_all(
+            gattdb_wearable_data,
+            strlen(str),
+            (const uint8_t *)str);
+    }
+#endif
+}
+
 bool somniguard_ble_notify_event(somniguard_ble_evt_type_t type,
                                  somniguard_ble_evt_code_t code,
                                  uint16_t param1,

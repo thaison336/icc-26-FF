@@ -22,6 +22,8 @@ source:
 - path: app.cpp
 - path: model/Interpreter.cpp
 - path: model/ppg_compress_stat7.c
+- path: MPU6050_driver/MPU6050.cpp
+- path: MPU6050_driver/I2Cdev.cpp
 tag:
 - hidden
 - hwfilter:device:device_series_2

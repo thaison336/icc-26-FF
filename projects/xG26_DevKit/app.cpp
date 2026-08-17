@@ -27,7 +27,7 @@
 #include "app.h"
 #include "FreeRTOS.h"
 #include "task.h"
-#include "MAX30102_driver/MAX30105.h"
+#include "MPU6050_driver/MPU6050.h"
 #include "em_gpio.h"
 #include "em_i2c.h"
 #include "MAX30102_manager.h"
@@ -117,19 +117,19 @@ void DataProcessingTask(void *pvParameters)
                 timestamp_ms,
                 &fsm->dsp_res);
 
-            somniguard_raw_imu_t rawIMU;
-            rawIMU.ax = data.ax;
-            rawIMU.ay = data.ay;
-            rawIMU.az = data.az;
-            rawIMU.gx = data.gx;
-            rawIMU.gy = data.gy;
-            rawIMU.gz = data.gz;
+            // somniguard_raw_imu_t rawIMU;
+            // rawIMU.ax = data.ax;
+            // rawIMU.ay = data.ay;
+            // rawIMU.az = data.az;
+            // rawIMU.gx = data.gx;
+            // rawIMU.gy = data.gy;
+            // rawIMU.gz = data.gz;
 
-            // 3. Chạy thuật toán Motion tính độ lệch chuẩn cựa tay
-            somniguard_motion_process_sample(
-                &fsm->motion_pro,
-                &rawIMU,
-                &fsm->motion_res);
+            // // 3. Chạy thuật toán Motion tính độ lệch chuẩn cựa tay
+            // somniguard_motion_process_sample(
+            //     &fsm->motion_pro,
+            //     &rawIMU,
+            //     &fsm->motion_res);
 
             // 4. Khi có stride DSP mới (mỗi 1s/0.5s), đẩy đầy đủ 4 kênh vào Tensor Buffer
             if (has_new_stride)
@@ -173,28 +173,34 @@ void DataProcessingTask(void *pvParameters)
 // Mặc định 10% -> Tiết kiệm pin tối đa và dịu mắt khi đeo ngủ ban đêm
 
 #define SYSTEM_STATUS_LED_BRIGHTNESS_PERCENT 10
-// Task nhấp nháy LED trên chân PC08 và PC09
+#include "other_driver/ble_notification_manager.h"
+
+// Task chớp LED báo hiệu hệ thống đang sống (Heartbeat) - Nháy chậm để tiết kiệm năng lượng
 void LedBlinkyTask(void *pvParameters)
 {
     (void)pvParameters;
+    printf("--- LED Blinky Task Started ---\r\n");
 
-    // Cấu hình tất cả các chân LED làm Output Push-Pull
-    GPIO_PinModeSet(gpioPortC, 8, gpioModePushPull, 1);
+    // // Cấu hình chân GPIO cho đèn LED Blue (PB02)
+    // GPIO_PinModeSet(SL_GPIO_PORT_B, 2, gpioModePushPull, 1);
+    
+    // Cấu hình PC08 và PC09
+    // GPIO_PinModeSet(gpioPortA, 7, gpioModePushPull, 1);
     GPIO_PinModeSet(gpioPortC, 9, gpioModePushPull, 1);
 
     while (1)
     {
-        // 1. Kéo xuống LOW
-        GPIO_PinOutClear(gpioPortC, 8);
-        GPIO_PinOutClear(gpioPortC, 9);
+        // Toggle (Đảo trạng thái)
+        // GPIO_PinOutToggle(SL_GPIO_PORT_B, 2);
+        
+        //GPIO_PinOutToggle(gpioPortA, 7);
+        GPIO_PinOutToggle(gpioPortC, 9);
+        
+        // Gửi chuỗi Hello world!!! qua BLE mỗi khi LED nháy
+        somniguard_ble_send_string("Hello world!!!");
 
-        vTaskDelay(pdMS_TO_TICKS(500));
-
-        // 2. Kéo lên HIGH
-        GPIO_PinOutSet(gpioPortC, 8);
-        GPIO_PinOutSet(gpioPortC, 9);
-
-        vTaskDelay(pdMS_TO_TICKS(500));
+        // Chớp mỗi 1 giây = 1000ms
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -349,12 +355,64 @@ static void main_app_task(void *pvParameters)
     }
 }
 
+#include "other_driver/i2c_ctl.h"
+
+void TestMPU6050Task(void *pvParameters)
+{
+    (void)pvParameters;
+    printf("--- MPU6050 Direct Test Task Started ---\r\n");
+
+    I2CBus mpuI2cBus(I2C0); // Đang dùng I2C0 theo file sl_i2c_sensor_config.h
+    MPU6050 mpu(MPU6050_DEFAULT_ADDRESS, &mpuI2cBus);
+
+    // Khởi tạo cảm biến
+    mpu.initialize();
+    
+    // Cấu hình giống IMU cũ (ICM40627)
+    mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_4); // ±4g
+    mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_500); // ±500 dps
+    mpu.setDLPFMode(MPU6050_DLPF_BW_20);            // Lọc thông thấp 21Hz (phù hợp định lý Nyquist cho lấy mẫu 50Hz)
+    mpu.setRate(19);                                // Tần số lấy mẫu = GyroRate(1kHz) / (1 + 19) = 50Hz
+
+    if (!mpu.testConnection()) {
+        printf("MPU6050 NOT FOUND! Check I2C wiring (SCL: PC05, SDA: PC07) and power.\r\n");
+        while (1) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
+    printf("MPU6050 Found & Initialized successfully!\r\n");
+
+    int16_t ax, ay, az, gx, gy, gz;
+
+    while (1)
+    {
+        // Liên tục kiểm tra dữ liệu từ cảm biến
+        mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+        
+        // Chuyển đổi sang đơn vị thực tế: Gia tốc (g) và Vận tốc góc (độ/s)
+        // Độ nhạy Accel ±4g: 8192 LSB/g. Độ nhạy Gyro ±500dps: 65.5 LSB/dps.
+        float accel_x = ax / 8192.0f;
+        float accel_y = ay / 8192.0f;
+        float accel_z = az / 8192.0f;
+        
+        float gyro_x = gx / 65.5f;
+        float gyro_y = gy / 65.5f;
+        float gyro_z = gz / 65.5f;
+        
+        printf("a/g:\t%6.2fg\t%6.2fg\t%6.2fg\t|\t%6.1f dps\t%6.1f dps\t%6.1f dps\r\n", 
+                accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
+        
+        // Delay một chút để tránh chiếm dụng toàn bộ CPU (50Hz)
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+}
+
 void app_init(void)
 {
     printf("========== APP INIT FSM RUN START ==========\r\n");
 
-    // // Khởi tạo BLE Notification Manager
-    // somniguard_ble_manager_init();
+    // Khởi tạo BLE Notification Manager
+    somniguard_ble_manager_init();
 
     // // Khởi tạo AI Model
     // init_model();
@@ -452,6 +510,14 @@ void app_init(void)
         512,
         NULL,
         tskIDLE_PRIORITY + 1,
+        NULL);
+
+    xTaskCreate(
+        TestMPU6050Task,
+        "TestMPU",
+        1024,
+        NULL,
+        tskIDLE_PRIORITY + 2,
         NULL);
 
     printf("========== APP INIT FSM RUN DONE ==========\r\n");

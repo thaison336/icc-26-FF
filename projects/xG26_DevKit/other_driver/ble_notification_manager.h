@@ -108,6 +108,11 @@ bool somniguard_ble_notify_telemetry(const somniguard_ble_telemetry_pkt_t *telem
 bool somniguard_ble_send_sos_msg(void);
 
 /**
+ * @brief Gửi chuỗi bất kỳ qua BLE
+ */
+void somniguard_ble_send_string(const char* str);
+
+/**
  * @brief Xử lý lệnh điều khiển Downlink gửi từ Mobile App qua GATT Write (0x0000FFE3-...)
  * @param data Mảng byte dữ liệu lệnh
  * @param len Độ dài mảng byte

@@ -138,7 +138,7 @@ static const uint8_t MAX_30105_EXPECTEDPARTID = 0x15;
 
 MAX30105::MAX30105()
 {
-  // Constructor
+  m_bufferMutex = NULL;
 }
 
 bool MAX30105::begin(I2CBus *i2cBus, uint32_t i2cSpeed, uint8_t i2caddr)

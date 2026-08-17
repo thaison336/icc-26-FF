@@ -3,9 +3,9 @@
 
 #include "MAX30105.h"
 #include "SensorCommand.h"
-#define MAX30102_INT_PORT gpioPortB
-#define MAX30102_INT_PIN 7
-#define MAX30102_INT_CH 7 // Kênh ngắt (thường chọn trùng số Pin)
+#define MAX30102_INT_PORT gpioPortC
+#define MAX30102_INT_PIN 0
+#define MAX30102_INT_CH 0 // Kênh ngắt (thường chọn trùng số Pin)
 
 #include "FreeRTOS.h"
 #include "queue.h"
