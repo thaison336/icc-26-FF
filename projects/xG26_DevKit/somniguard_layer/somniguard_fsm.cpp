@@ -379,7 +379,7 @@ void somniguard_fsm_task(void *pvParameters)
 
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(100); // Thá»±c thi 100ms má»™t láº§n (10Hz)
-
+    printf("hehehe");
     while (1)
     {
         // Chá» chÃ­nh xÃ¡c 100ms Ä‘á»ƒ cháº¡y vÃ²ng láº·p FSM Ä‘á»‹nh ká»³
@@ -536,7 +536,9 @@ void somniguard_fsm_task(void *pvParameters)
              * - Äo PPG 1Hz kiá»ƒm tra Ä‘eo thiáº¿t bá»‹
              * - Äáº¡t Ä‘iá»u kiá»‡n khÃ´ng cá»­ Ä‘á»™ng 3 phÃºt -> chuyá»ƒn NORMAL SLEEP
              */
+
             somniguard_led_display(FSM_TOP_ACTIVE_MODE);
+
             // Kiá»ƒm tra tuá»™t/thÃ¡o ngÃ³n tay
             if (!fsm->dsp_pro.is_finger_attached)
             {
@@ -943,7 +945,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
 
                 // --- NgÆ°á»¡ng 1 (Cá»©ng): SpO2 tá»¥t dÆ°á»›i 93% ---
                 // Nguy cÆ¡ ngÆ°ng thá»Ÿ rÃµ rÃ ng â†’ chuyá»ƒn DEEP_ANALYSIS ngay láº­p tá»©c
-                if (spo2 < FSM_SPO2_CRITICAL_THRESHOLD)
+                if (spo2 < FSM_SPO2_WARN_THRESHOLD)
                 {
                     // printf("[SLEEP] ANOMALY Tier-1: SpO2 %.1f%% < %.0f%% threshold! -> DEEP_ANALYSIS\r\n",
                     //        spo2, FSM_SPO2_CRITICAL_THRESHOLD);
@@ -953,15 +955,19 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     somniguard_fsm_set_top_state(fsm, FSM_TOP_DEEP_ANALYSIS);
                     break;
                 }
-
-                // --- NgÆ°á»¡ng 2 (Má»m): SpO2 drop >= 4% so vá»›i baseline, kÃ©o dÃ i >= 10s ---
+                if (spo2 < FSM_SPO2_CRITICAL_THRESHOLD && fsm->dsp_res.signal_valid && fsm->motion_pro.motion_threshold < PARAM_IMU_MOTION_THRESHOLD)
+                {
+                    somniguard_fsm_set_top_state(fsm, FSM_TOP_DEEP_ANALYSIS);
+                    somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
+                }
+                // --- NgÆ°á»¡ng 2 (Má» m): SpO2 drop >= 4% so vá»›i baseline, kÃ©o dÃ i >= 10s ---
                 // PhÃ¡t hiá»‡n xu hÆ°á»›ng giáº£m oxy mÃ¡u cháº­m (hypopnea / mild apnea)
                 float spo2_drop = fsm->spo2_baseline - spo2;
                 if (spo2_drop >= APNEA_DROP_THRESHOLD)
                 {
                     if (fsm->anomaly_detect_ms == 0)
                     {
-                        // Báº¯t Ä‘áº§u Ä‘áº¿m thá»i gian báº¥t thÆ°á»ng bá»n vá»¯ng
+                        // Báº¯t Ä‘á» u Ä‘áº¿m thá» i gian báº¥t thÆ°á» ng bá» n vá»¯ng
                         fsm->anomaly_detect_ms = now_ms;
                         fsm->anomaly_sustained = true;
                         // printf("[SLEEP] ANOMALY Tier-2: SpO2 drop %.1f%% (baseline %.1f%% -> now %.1f%%). Counting...\r\n",
@@ -1019,21 +1025,13 @@ void somniguard_fsm_apply_actuators(somniguard_fsm_t *fsm)
         somniguard_haptic_motor(0, 0);
         break; // Táº¯t rung
     case 1:
-        somniguard_haptic_motor(100, 3000);
+        somniguard_haptic_motor(HAPTIC_PWM_MILD, HAPTIC_DURATION_MILD_MS);
         break; // Rung nháº¹ (VÃ­ dá»¥ 100/255 trong 3s)
     case 2:
-        somniguard_haptic_motor(255, 5000);
+        somniguard_haptic_motor(HAPTIC_PWM_STRONG, HAPTIC_DURATION_STRONG_MS);
         break; // Rung máº¡nh (255/255 trong 5s)
     }
-    // 2. Äiá»u khiá»ƒn CÃ²i BÃ¡o Äá»™ng (Buzzer)
-    if (fsm->buzzer_alarm)
-    {
-        // Gá»i hÃ m báº­t cÃ²i PWM/GPIO (VD: buzzer_on())
-    }
-    else
-    {
-        // Gá»i hÃ m táº¯t cÃ²i (VD: buzzer_off())
-    }
+
     // 3. Äiá»u khiá»ƒn BLE SOS
     if (fsm->ble_sos_flag)
     {

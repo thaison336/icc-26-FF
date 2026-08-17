@@ -35,8 +35,9 @@ extern "C"
 #define FSM_EVALUATE_TIMEOUT_MS (10000UL)   // 10 giây đánh giá phục hồi sau can thiệp
 
 /* Ngưỡng phát hiện bất thường trong NORMAL_SLEEP */
-#define FSM_SPO2_CRITICAL_THRESHOLD 93.0f // Ngưỡng 1: SpO2 < 93% -> DEEP_ANALYSIS ngay
-#define FSM_ANOMALY_SUSTAIN_MS (10000UL)  // Ngưỡng 2: SpO2 drop >= 4% kéo dài 10s -> DEEP_ANALYSIS
+#define FSM_SPO2_WARN_THRESHOLD 93.0f     // Ngưỡng 1: SpO2 < 93% -> DEEP_ANALYSIS ngay
+#define FSM_SPO2_CRITICAL_THRESHOLD 90.0f // Ngưỡng 2: SpO2 < 90% -> DEEP_ANALYSIS ngay
+#define FSM_ANOMALY_SUSTAIN_MS (10000UL)  // Ngưỡng 3: SpO2 drop >= 4% kéo dài 10s -> DEEP_ANALYSIS
 
     /**
      * @brief Cấu trúc quản lý toàn bộ trạng thái FSM 2 Tầng và các cờ điều khiển ngoại vi

@@ -451,44 +451,44 @@ void app_init(void)
     vTaskDelay(pdMS_TO_TICKS(50)); // Chờ task in xong startup log trước khi tạo task tiếp theo
 
     // 2. Task Bộ Não FSM Chính (Top-Level FSM Runner - 100ms)
-    // xTaskCreate(
-    //     somniguard_fsm_task,
-    //     "FsmMain",
-    //     512,
-    //     &myFSM,
-    //     tskIDLE_PRIORITY + 2,
-    //     NULL);
-    // vTaskDelay(pdMS_TO_TICKS(50));
+    xTaskCreate(
+        somniguard_fsm_task,
+        "FsmMain",
+        512,
+        &myFSM,
+        tskIDLE_PRIORITY + 2,
+        NULL);
+    vTaskDelay(pdMS_TO_TICKS(50));
 
-    // // 3. Sub-FSM Task cho Active Mode
-    // xTaskCreate(
-    //     somniguard_active_mode_task,
-    //     "FsmActive",
-    //     384,
-    //     &myFSM,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
-    // vTaskDelay(pdMS_TO_TICKS(50));
+    // 3. Sub-FSM Task cho Active Mode
+    xTaskCreate(
+        somniguard_active_mode_task,
+        "FsmActive",
+        384,
+        &myFSM,
+        tskIDLE_PRIORITY + 1,
+        NULL);
+    vTaskDelay(pdMS_TO_TICKS(50));
 
-    // // 4. Sub-FSM Task cho Normal Sleep
-    // xTaskCreate(
-    //     somniguard_normal_sleep_task,
-    //     "FsmSleep",
-    //     384,
-    //     &myFSM,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
-    // vTaskDelay(pdMS_TO_TICKS(50));
+    // 4. Sub-FSM Task cho Normal Sleep
+    xTaskCreate(
+        somniguard_normal_sleep_task,
+        "FsmSleep",
+        384,
+        &myFSM,
+        tskIDLE_PRIORITY + 1,
+        NULL);
+    vTaskDelay(pdMS_TO_TICKS(50));
 
-    // // 5. Sub-FSM Task cho Deep Analysis / Can thiệp
-    // xTaskCreate(
-    //     somniguard_deep_analysis_task,
-    //     "FsmDeep",
-    //     384,
-    //     &myFSM,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
-    // vTaskDelay(pdMS_TO_TICKS(50));
+    // 5. Sub-FSM Task cho Deep Analysis / Can thiệp
+    xTaskCreate(
+        somniguard_deep_analysis_task,
+        "FsmDeep",
+        384,
+        &myFSM,
+        tskIDLE_PRIORITY + 1,
+        NULL);
+    vTaskDelay(pdMS_TO_TICKS(50));
 
     // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power profiling)
     xTaskCreate(

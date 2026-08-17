@@ -16,27 +16,22 @@ extern "C" {
 #endif
 
 /**
- * @brief Khởi tạo phần cứng các ngoại vi chấp hành (Dual LED, Buzzer).
+ * @brief Khởi tạo phần cứng các ngoại vi chấp hành (Dual LED: PC08, PC09 | Haptic PWM: PA07).
  */
 void actuators_bsp_init(void);
 
 /**
- * @brief Đặt trạng thái cho 2 LED (LED1: PB02, LED2: PC09).
- * @param led1 Bật/tắt LED1 (PB02)
+ * @brief Đặt trạng thái cho 2 LED (LED1: PC08, LED2: PC09).
+ * @param led1 Bật/tắt LED1 (PC08)
  * @param led2 Bật/tắt LED2 (PC09)
  */
 void actuators_set_leds(bool led1, bool led2);
 void actuators_set_rgb_led(bool red, bool green, bool blue);
-void actuators_pwm_init(void);
-void actuators_set_rgb_brightness_8bit(uint8_t red, uint8_t green, uint8_t blue);
-/**
- * @brief Bật/tắt còi báo động (Buzzer).
- * @param enable true = Bật còi, false = Tắt còi
- */
-void actuators_set_buzzer(bool enable);
+void actuators_set_haptic_pwm(uint8_t ampHaptic);
 
 #ifdef __cplusplus
 }
 #endif
 
 #endif // ACTUATORS_BSP_H
+
