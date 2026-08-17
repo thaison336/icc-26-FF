@@ -138,7 +138,7 @@ void somniguard_fsm_init(somniguard_fsm_t *fsm, SensorHub *hub)
     somniguard_buffer_init(&fsm->buffer_pro);
     somniguard_motion_init(&fsm->motion_pro, IMU_SAMPLING_RATE_ACTIVE_HZ);
 
-    // Khá»Ÿi táº¡o cÃ¡c cá» káº¿t quáº£ vÃ  cá» Ä‘iá»u khiá»ƒn ngoáº¡i vi máº·c Ä‘á»‹nh
+    // Khá»Ÿi táº¡o cÃ¡c cá»  káº¿t quáº£ vÃ  cá»  Ä‘iá» u khiá»ƒn ngoáº¡i vi máº·c Ä‘á»‹nh
     fsm->last_ai_event = AI_EVENT_NORMAL;
     fsm->vibrate_level = 0;
     fsm->buzzer_alarm = false;
@@ -146,7 +146,12 @@ void somniguard_fsm_init(somniguard_fsm_t *fsm, SensorHub *hub)
     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ;
     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ;
 
-    // Khá»Ÿi táº¡o cÃ¡c cá» entry action (memset Ä‘Ã£ set = false)
+    // AGC đã xác nhận ngón tay trước khi FSM init → set is_finger_attached = true
+    // Nếu để false (default của memset), FSM sẽ nhảy ngay vào OFF_FINGER_SUSPEND
+    // và shutdown MAX30102 → deadlock toàn hệ thống
+    fsm->dsp_pro.is_finger_attached = true;
+
+    // Khá»Ÿi táº¡o cÃ¡c cá»  entry action (memset Ä‘Ã£ set = false)
     fsm->off_finger_entry_done = false;
     fsm->active_init_done = false;
     fsm->sleep_buffering_entry_done = false;
@@ -370,6 +375,7 @@ void somniguard_fsm_task(void *pvParameters)
         vTaskDelete(nullptr);
         return;
     }
+    printf("--- FSM Main Task Started ---\r\n");
 
     TickType_t xLastWakeTime = xTaskGetTickCount();
     const TickType_t xFrequency = pdMS_TO_TICKS(100); // Thá»±c thi 100ms má»™t láº§n (10Hz)
@@ -422,7 +428,7 @@ void somniguard_fsm_task(void *pvParameters)
             vTaskDelay(pdMS_TO_TICKS(5000)); // hiá»‡n thá»‹ led biá»ƒu thá»‹ tráº¡ng thÃ¡i thiáº¿t bá»‹ chuáº©n bá»‹ táº¯t
             // ham thuc hien BLE thong bao cho app tren dt bt thiet bi da tat
             // ham thuc hien tat nguon
-            somniguard_enter_em4_shutoff(fsm);
+            // somniguard_enter_em4_shutoff(fsm);
             break;
         }
         case FSM_TOP_OFF_FINGER_SUSPEND:
@@ -474,7 +480,7 @@ void somniguard_fsm_task(void *pvParameters)
                         continue;
                     }
 
-                    // Äá»c máº«u cuá»‘i cÃ¹ng trong buffer (Ä‘Ã£ Ä‘Æ°á»£c interrupt task fill)
+                    // Ä á» c máº«u cuá»‘i cÃ¹ng trong buffer (Ä‘Ã£ Ä‘Æ°á»£c interrupt task fill)
                     uint32_t ppgIR = 0;
                     // Xáº£ háº¿t trá»« 1 máº«u cuá»‘i Ä‘á»ƒ láº¥y giÃ¡ trá»‹ má»›i nháº¥t
                     while (fsm->hub->MAX30102_driver().available() > 1)
@@ -656,6 +662,7 @@ void somniguard_deep_analysis_task(void *pvParameters)
         vTaskDelete(nullptr);
         return;
     }
+    printf("--- FSM Deep Analysis Task Started ---\r\n");
 
     while (1)
     {
@@ -765,6 +772,7 @@ void somniguard_active_mode_task(void *pvParameters)
     somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
     if (fsm == nullptr)
         return;
+    printf("--- FSM Active Mode Task Started ---\r\n");
 
     while (1)
     {
@@ -789,7 +797,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
                     fsm->hub->MAX30102_driver().driver().wakeUp();
                     //   fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     fsm->active_init_done = true;
                 }
                 // AGC Ä‘Ã£ cháº¡y trong app_init(), khÃ´ng gá»i á»Ÿ Ä‘Ã¢y ná»¯a
@@ -811,7 +819,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_SLEEP_HZ; // 50Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_SLEEP_HZ; // 50Hz
                                                                           //  fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_PRE_SLEEP);
                 }
                 break;
@@ -826,7 +834,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ; // 25Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
                                                                            // fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_WAKEFUL);
                 }
                 // Náº¿u náº±m yÃªn Ä‘á»§ 3 phÃºt (FSM_SLEEP_ENTER_TIME_MS) vÃ  tÃ­n hiá»‡u tá»‘t -> Chuyá»ƒn NORMAL_SLEEP
@@ -846,7 +854,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ;
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ;
                     //  fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_WAKEFUL);
                 }
                 break;
@@ -874,6 +882,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
     somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
     if (fsm == nullptr)
         return;
+    printf("--- FSM Normal Sleep Task Started ---\r\n");
 
     while (1)
     {
@@ -900,7 +909,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_SLEEP_HZ;
 
                     //   fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    //    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     fsm->sleep_buffering_entry_done = true;
 
                     printf("[SLEEP] Buffering... waiting for %d samples.\r\n", TENSOR_MAX_ROWS);
@@ -931,7 +940,6 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     break;
 
                 float spo2 = fsm->dsp_res.spo2;
-        
 
                 // --- NgÆ°á»¡ng 1 (Cá»©ng): SpO2 tá»¥t dÆ°á»›i 93% ---
                 // Nguy cÆ¡ ngÆ°ng thá»Ÿ rÃµ rÃ ng â†’ chuyá»ƒn DEEP_ANALYSIS ngay láº­p tá»©c

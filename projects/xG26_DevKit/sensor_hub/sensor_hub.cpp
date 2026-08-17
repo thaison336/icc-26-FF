@@ -17,12 +17,9 @@ IMU &SensorHub::imu_driver()
 
 ////////////////////////////INIT sub function/////////////////////////////////////////////////////////////////////////////
 
-static I2CBus max30102I2CBus(I2C1);
-
 bool initMax30102(MAX30102_manager &MAX30102Sensor, int samplerate)
 {
-
-    if (!MAX30102Sensor.begin(&max30102I2CBus))
+    if (!MAX30102Sensor.begin(&g_i2c0_bus))
     {
         printf("Failed to initialize MAX30102!\r\n");
         return false;
@@ -31,7 +28,7 @@ bool initMax30102(MAX30102_manager &MAX30102Sensor, int samplerate)
     MAX30102Sensor.driver().setup(0x1F, MAX30102_AVERAGING, 2, samplerate * MAX30102_AVERAGING, 411, 4096);
     MAX30102Sensor.driver().setFIFOAlmostFull(7);
     MAX30102Sensor.driver().enableAFULL();
-    // MAX30102Sensor.driver().enableDATARDY();
+    MAX30102Sensor.driver().enableDATARDY(); // Bật ngắt DATA READY (50Hz: mỗi 20ms tạo 1 xung ngắt trên chân INT)
     MAX30102Sensor.driver().Max30102_setSampleRate(samplerate * MAX30102_AVERAGING);
     MAX30102Sensor.driver().debugDumpConfig();
     return true;
@@ -39,18 +36,20 @@ bool initMax30102(MAX30102_manager &MAX30102Sensor, int samplerate)
 
 bool initIMU(IMU &imu, int samplerate)
 {
-    sl_status_t imu_status = imu.setup(samplerate, IMU_AVERAGING);
+    sl_status_t imu_status = imu.setup(samplerate, 1);
     if (imu_status != SL_STATUS_OK)
     {
-        printf("Failed to initialize IMU!\r\n");
+        printf("Failed to initialize MPU6050 IMU!\r\n");
         return false;
     }
+    printf("MPU6050 IMU initialized successfully.\r\n");
     return true;
 }
 
 void MAX30102TaskINT(void *pvParameters)
 {
     MAX30102_manager *manager = static_cast<MAX30102_manager *>(pvParameters);
+    printf("--- MAX30102 Interrupt Task Started ---\r\n");
     init_MAX30102_Interrupt(manager);
     manager->task();
 }
@@ -59,11 +58,9 @@ void MAX30102TaskINT(void *pvParameters)
 bool SensorHub::initSensors(uint16_t sampleRate)
 {
     this->max30102_freq = sampleRate * MAX30102_AVERAGING;
-    if (initMax30102(this->m_max30102, sampleRate) && initIMU(this->m_imu, sampleRate))
+    if (initIMU(this->m_imu, sampleRate) && initMax30102(this->m_max30102, sampleRate))
     {
-        // Táº¡o interrupt task ngay tá»« Ä‘áº§u Ä‘á»ƒ driver I2C Ä‘Æ°á»£c xá»­ lÃ½ Ä‘Ãºng cÃ¡ch
-        // AGC sáº½ Ä‘á»c tá»« software buffer mÃ  task nÃ y fill vÃ o
-        xTaskCreate(MAX30102TaskINT, "MAX30102_Task", 256, (void *)&m_max30102, tskIDLE_PRIORITY + 3, &m_max30102TaskHandle);
+        xTaskCreate(MAX30102TaskINT, "MAX30102_Task", 512, (void *)&m_max30102, tskIDLE_PRIORITY + 3, &m_max30102TaskHandle);
         resetSensor();
         vTaskDelay(pdMS_TO_TICKS(10));
         return true;
@@ -74,26 +71,11 @@ bool SensorHub::getPPGdata(sensor_hub_data_t *data)
 {
     if (data == nullptr)
         return false;
-    imu_data_float_t imu_out;
+
     if (m_max30102.available() == 0)
     {
-        // printf("\r\nNo data from MAX30102!\r\n");
         return false;
     }
-    if (m_imu.available() == 0)
-    {
-        // ÄÃ£ comment printf Ä‘á»ƒ trÃ¡nh bá»‹ ngáº­p lá»¥t log khi bá»‹ lá»‡ch pha
-        // printf("\r\nNo data from IMU!\r\n");
-        return false;
-    }
-
-    m_imu.IMU_getfifo(&imu_out);
-    data->ax = imu_out.x;
-    data->ay = imu_out.y;
-    data->az = imu_out.z;
-    data->gx = imu_out.gx;
-    data->gy = imu_out.gy;
-    data->gz = imu_out.gz;
 
     data->ppg_red = m_max30102.getFIFORed();
     data->ppg_ir = m_max30102.getFIFOIR();
@@ -104,61 +86,13 @@ bool SensorHub::getsensordata(sensor_hub_data_t *data)
 {
     if (data == nullptr)
         return false;
+
+    if (m_max30102.available() == 0 || m_imu.available() == 0)
+    {
+        return false;
+    }
+
     imu_data_float_t imu_out;
-
-    // --- Äá»’NG Bá»˜ HÃ“A (RESYNC) THá»œI GIAN THá»°C ---
-    // Äáº·t ngÆ°á»¡ng xáº£ lÃ  30 máº«u vÃ¬ MAX30102 Ä‘á»c data theo cá»¥c (Burst Read ~25 máº«u/ngáº¯t).
-    // Náº¿u chÃªnh lá»‡ch < 30 thÃ¬ chá»‰ lÃ  do lá»‡ch pha Ä‘á»c, nhÆ°ng náº¿u > 30 cháº¯c cháº¯n lÃ  do Clock Drift.
-    const int THRESHOLD = 30;
-
-    // Biáº¿n static Ä‘á»ƒ lÆ°u thá»i Ä‘iá»ƒm xáº£ máº«u láº§n trÆ°á»›c (tÃ­nh báº±ng ms)
-    static uint32_t last_imu_discard_time = 0;
-    static uint32_t last_max_discard_time = 0;
-
-    // Náº¿u IMU cháº¡y nhanh hÆ¡n vÃ  Ä‘á»ng nhiá»u hÆ¡n MAX30102
-    int imu_discard_count = 0;
-    while ((int)m_imu.available() - (int)m_max30102.available() > THRESHOLD)
-    {
-        imu_data_float_t trash;
-        m_imu.IMU_getfifo(&trash); // Xáº£ bá» 1 máº«u cÅ© nháº¥t cá»§a IMU
-        imu_discard_count++;
-    }
-    if (imu_discard_count > 0)
-    {
-        uint32_t current_time = xTaskGetTickCount();
-        uint32_t diff = (last_imu_discard_time == 0) ? 0 : (current_time - last_imu_discard_time);
-        printf("\r\n[RESYNC] IMU too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", imu_discard_count, diff);
-        last_imu_discard_time = current_time;
-    }
-
-    // Náº¿u MAX30102 cháº¡y nhanh hÆ¡n IMU
-    int max_discard_count = 0;
-    while ((int)m_max30102.available() - (int)m_imu.available() > THRESHOLD)
-    {
-        m_max30102.nextSample(); // Xáº£ bá» 1 máº«u cÅ© nháº¥t cá»§a MAX
-        max_discard_count++;
-    }
-    if (max_discard_count > 0)
-    {
-        uint32_t current_time = xTaskGetTickCount();
-        uint32_t diff = (last_max_discard_time == 0) ? 0 : (current_time - last_max_discard_time);
-        printf("\r\n[RESYNC] MAX30102 too fast! Discarded %d samples. Time since last discard: %lu ms\r\n", max_discard_count, diff);
-        last_max_discard_time = current_time;
-    }
-    // ------------------------------------------
-
-    if (m_max30102.available() == 0)
-    {
-        printf("\r\nNo data from MAX30102!\r\n");
-        return false;
-    }
-    if (m_imu.available() == 0)
-    {
-        // ÄÃ£ comment printf Ä‘á»ƒ trÃ¡nh bá»‹ ngáº­p lá»¥t log khi bá»‹ lá»‡ch pha
-        // printf("\r\nNo data from IMU!\r\n");
-        return false;
-    }
-
     m_imu.IMU_getfifo(&imu_out);
     data->ax = imu_out.x;
     data->ay = imu_out.y;
@@ -178,7 +112,6 @@ void SensorHub::resetSensor()
 {
     m_max30102.clearFIFO();
     m_max30102.setSampleRate(this->max30102_freq);
-
     m_imu.clearFIFO();
 }
 

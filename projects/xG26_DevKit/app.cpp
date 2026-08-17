@@ -44,7 +44,7 @@
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
 
-#define USE_MOCK_TENSOR_BUFFER 1
+#define USE_MOCK_TENSOR_BUFFER 0
 
 #if USE_MOCK_TENSOR_BUFFER
 // Hàm sinh dữ liệu Tensor Buffer giả lập:
@@ -96,14 +96,15 @@ static void get_mock_tensor_metrics(somniguard_fsm_t *fsm, uint32_t timestamp_ms
 void DataProcessingTask(void *pvParameters)
 {
     somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
+    printf("--- DataProcessing Task Started ---\r\n");
     sensor_hub_data_t data;
     float ac_ir_buf[FEATURE_RATE_IR_AC_HZ];
     uint16_t idx = 0;
 
     while (1)
     {
-        // 1. Rút data thô từ SensorHub
-        while (fsm->hub->getPPGdata(&data))
+        // 1. Rút data thô đồng bộ (PPG + IMU) từ SensorHub (kích hoạt bởi ngắt MAX30102)
+        while (fsm->hub->getsensordata(&data))
         {
             uint32_t timestamp_ms = pdTICKS_TO_MS(xTaskGetTickCount());
             ac_ir_buf[idx] = (float)data.ppg_ir;
@@ -117,19 +118,24 @@ void DataProcessingTask(void *pvParameters)
                 timestamp_ms,
                 &fsm->dsp_res);
 
-            // somniguard_raw_imu_t rawIMU;
-            // rawIMU.ax = data.ax;
-            // rawIMU.ay = data.ay;
-            // rawIMU.az = data.az;
-            // rawIMU.gx = data.gx;
-            // rawIMU.gy = data.gy;
-            // rawIMU.gz = data.gz;
+            somniguard_raw_imu_t rawIMU;
+            rawIMU.ax = data.ax;
+            rawIMU.ay = data.ay;
+            rawIMU.az = data.az;
+            rawIMU.gx = data.gx;
+            rawIMU.gy = data.gy;
+            rawIMU.gz = data.gz;
 
-            // // 3. Chạy thuật toán Motion tính độ lệch chuẩn cựa tay
-            // somniguard_motion_process_sample(
-            //     &fsm->motion_pro,
-            //     &rawIMU,
-            //     &fsm->motion_res);
+            // printf("PPG[R:%lu, IR:%lu] | ACC[%.2f, %.2f, %.2f]g | GYR[%.1f, %.1f, %.1f]dps\r\n",
+            //        data.ppg_red, data.ppg_ir,
+            //        data.ax, data.ay, data.az,
+            //        data.gx, data.gy, data.gz);
+
+            // 3. Chạy thuật toán Motion tính độ lệch chuẩn cựa tay
+            somniguard_motion_process_sample(
+                &fsm->motion_pro,
+                &rawIMU,
+                &fsm->motion_res);
 
             // 4. Khi có stride DSP mới (mỗi 1s/0.5s), đẩy đầy đủ 4 kênh vào Tensor Buffer
             if (has_new_stride)
@@ -183,19 +189,19 @@ void LedBlinkyTask(void *pvParameters)
 
     // // Cấu hình chân GPIO cho đèn LED Blue (PB02)
     // GPIO_PinModeSet(SL_GPIO_PORT_B, 2, gpioModePushPull, 1);
-    
+
     // Cấu hình PC08 và PC09
     // GPIO_PinModeSet(gpioPortA, 7, gpioModePushPull, 1);
     GPIO_PinModeSet(gpioPortC, 9, gpioModePushPull, 1);
 
     while (1)
     {
-        // Toggle (Đảo trạng thái)
-        // GPIO_PinOutToggle(SL_GPIO_PORT_B, 2);
-        
-        //GPIO_PinOutToggle(gpioPortA, 7);
+        // Toggle(Đảo trạng thái)
+        GPIO_PinOutToggle(SL_GPIO_PORT_B, 2);
+
+        // GPIO_PinOutToggle(gpioPortA, 7);
         GPIO_PinOutToggle(gpioPortC, 9);
-        
+
         // Gửi chuỗi Hello world!!! qua BLE mỗi khi LED nháy
         somniguard_ble_send_string("Hello world!!!");
 
@@ -209,14 +215,13 @@ void FsmLoggerTask(void *pvParameters)
 {
     somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
     printf("--- SomniGuard FSM Logger Task Started ---\r\n");
-    fflush(stdout);
 
     uint32_t log_counter = 0;
     while (1)
     {
         vTaskDelay(pdMS_TO_TICKS(1000)); // In log mỗi 1 giây
         log_counter++;
-
+        // printf("here");
         const char *top_str = somniguard_top_state_str(fsm->top_state);
         const char *sub_str = "N/A";
         switch (fsm->top_state)
@@ -255,7 +260,6 @@ void FsmLoggerTask(void *pvParameters)
                somniguard_ble_is_subscribed() ? "ON" : "OFF",
                fsm->buffer_pro.count,
                TENSOR_MAX_ROWS);
-        fflush(stdout);
     }
 }
 
@@ -263,6 +267,7 @@ void FsmLoggerTask(void *pvParameters)
 void BleTelemetryTask(void *pvParameters)
 {
     somniguard_fsm_t *fsm = static_cast<somniguard_fsm_t *>(pvParameters);
+    printf("--- BLE Telemetry Task Started ---\r\n");
     uint16_t seq_num = 0;
 
     while (1)
@@ -367,16 +372,18 @@ void TestMPU6050Task(void *pvParameters)
 
     // Khởi tạo cảm biến
     mpu.initialize();
-    
+
     // Cấu hình giống IMU cũ (ICM40627)
     mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_4); // ±4g
     mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_500); // ±500 dps
     mpu.setDLPFMode(MPU6050_DLPF_BW_20);            // Lọc thông thấp 21Hz (phù hợp định lý Nyquist cho lấy mẫu 50Hz)
     mpu.setRate(19);                                // Tần số lấy mẫu = GyroRate(1kHz) / (1 + 19) = 50Hz
 
-    if (!mpu.testConnection()) {
+    if (!mpu.testConnection())
+    {
         printf("MPU6050 NOT FOUND! Check I2C wiring (SCL: PC05, SDA: PC07) and power.\r\n");
-        while (1) {
+        while (1)
+        {
             vTaskDelay(pdMS_TO_TICKS(1000));
         }
     }
@@ -388,20 +395,20 @@ void TestMPU6050Task(void *pvParameters)
     {
         // Liên tục kiểm tra dữ liệu từ cảm biến
         mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-        
+
         // Chuyển đổi sang đơn vị thực tế: Gia tốc (g) và Vận tốc góc (độ/s)
         // Độ nhạy Accel ±4g: 8192 LSB/g. Độ nhạy Gyro ±500dps: 65.5 LSB/dps.
         float accel_x = ax / 8192.0f;
         float accel_y = ay / 8192.0f;
         float accel_z = az / 8192.0f;
-        
+
         float gyro_x = gx / 65.5f;
         float gyro_y = gy / 65.5f;
         float gyro_z = gz / 65.5f;
-        
-        printf("a/g:\t%6.2fg\t%6.2fg\t%6.2fg\t|\t%6.1f dps\t%6.1f dps\t%6.1f dps\r\n", 
-                accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
-        
+
+        printf("a/g:\t%6.2fg\t%6.2fg\t%6.2fg\t|\t%6.1f dps\t%6.1f dps\t%6.1f dps\r\n",
+               accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z);
+
         // Delay một chút để tránh chiếm dụng toàn bộ CPU (50Hz)
         vTaskDelay(pdMS_TO_TICKS(20));
     }
@@ -415,34 +422,35 @@ void app_init(void)
     somniguard_ble_manager_init();
 
     // // Khởi tạo AI Model
-    // init_model();
+    init_model();
 
-    // // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
-    // if (!mySensorHub.initSensors(50))
-    // {
-    //     printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
-    // }
-    // else
-    // {
-    //     printf("SensorHub initialized successfully.\r\n");
-    // }
+    // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
+    if (!mySensorHub.initSensors(50))
+    {
+        printf("WARNING: Failed to initialize SensorHub! Continuing system boot...\r\n");
+    }
+    else
+    {
+        printf("SensorHub initialized successfully.\r\n");
+    }
 
     // Chạy AGC calibration trước khi tạo FSM tasks
-    // mySensorHub.agcAmplitudeLed();
+    mySensorHub.agcAmplitudeLed();
 
     // // Khởi tạo Bộ Não FSM
-    // somniguard_fsm_init(&myFSM, &mySensorHub);
+    somniguard_fsm_init(&myFSM, &mySensorHub);
 
-    // // 1. Task Thu thập & Xử lý Dữ liệu Cảm biến
-    // xTaskCreate(
-    //     DataProcessingTask,
-    //     "DataProc",
-    //     512,
-    //     &myFSM,
-    //     tskIDLE_PRIORITY + 3,
-    //     NULL);
+    // 1. Task Thu thập & Xử lý Dữ liệu Cảm biến
+    xTaskCreate(
+        DataProcessingTask,
+        "DataProc",
+        512,
+        &myFSM,
+        tskIDLE_PRIORITY + 3,
+        NULL);
+    vTaskDelay(pdMS_TO_TICKS(50)); // Chờ task in xong startup log trước khi tạo task tiếp theo
 
-    // // 2. Task Bộ Não FSM Chính (Top-Level FSM Runner - 100ms)
+    // 2. Task Bộ Não FSM Chính (Top-Level FSM Runner - 100ms)
     // xTaskCreate(
     //     somniguard_fsm_task,
     //     "FsmMain",
@@ -450,6 +458,7 @@ void app_init(void)
     //     &myFSM,
     //     tskIDLE_PRIORITY + 2,
     //     NULL);
+    // vTaskDelay(pdMS_TO_TICKS(50));
 
     // // 3. Sub-FSM Task cho Active Mode
     // xTaskCreate(
@@ -459,6 +468,7 @@ void app_init(void)
     //     &myFSM,
     //     tskIDLE_PRIORITY + 1,
     //     NULL);
+    // vTaskDelay(pdMS_TO_TICKS(50));
 
     // // 4. Sub-FSM Task cho Normal Sleep
     // xTaskCreate(
@@ -468,6 +478,7 @@ void app_init(void)
     //     &myFSM,
     //     tskIDLE_PRIORITY + 1,
     //     NULL);
+    // vTaskDelay(pdMS_TO_TICKS(50));
 
     // // 5. Sub-FSM Task cho Deep Analysis / Can thiệp
     // xTaskCreate(
@@ -477,24 +488,26 @@ void app_init(void)
     //     &myFSM,
     //     tskIDLE_PRIORITY + 1,
     //     NULL);
+    // vTaskDelay(pdMS_TO_TICKS(50));
 
     // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power profiling)
-    // xTaskCreate(
-    //     FsmLoggerTask,
-    //     "FsmLogger",
-    //     512,
-    //     &myFSM,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
+    xTaskCreate(
+        FsmLoggerTask,
+        "FsmLogger",
+        1024,
+        &myFSM,
+        tskIDLE_PRIORITY + 1,
+        NULL);
+    vTaskDelay(pdMS_TO_TICKS(50));
 
-    // // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
-    // xTaskCreate(
-    //     BleTelemetryTask,
-    //     "BleTelem",
-    //     384,
-    //     &myFSM,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
+    // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
+    xTaskCreate(
+        BleTelemetryTask,
+        "BleTelem",
+        384,
+        &myFSM,
+        tskIDLE_PRIORITY + 1,
+        NULL);
 
     // // 8. Task Serial AI Test
     // xTaskCreate(
@@ -504,21 +517,21 @@ void app_init(void)
     //     NULL,
     //     tskIDLE_PRIORITY + 1,
     //     NULL);
-    xTaskCreate(
-        LedBlinkyTask,
-        "LedBlinky",
-        512,
-        NULL,
-        tskIDLE_PRIORITY + 1,
-        NULL);
+    // xTaskCreate(
+    //     LedBlinkyTask,
+    //     "LedBlinky",
+    //     512,
+    //     NULL,
+    //     tskIDLE_PRIORITY + 1,
+    //     NULL);
 
-    xTaskCreate(
-        TestMPU6050Task,
-        "TestMPU",
-        1024,
-        NULL,
-        tskIDLE_PRIORITY + 2,
-        NULL);
+    // xTaskCreate(
+    //     TestMPU6050Task,
+    //     "TestMPU",
+    //     1024,
+    //     NULL,
+    //     tskIDLE_PRIORITY + 2,
+    //     NULL);
 
     printf("========== APP INIT FSM RUN DONE ==========\r\n");
 }

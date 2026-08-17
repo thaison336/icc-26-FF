@@ -1,11 +1,13 @@
 #include "i2c_ctl.h"
 #include "stdio.h"
-// ÄÃ£ sá»­a láº¡i tÃªn class I2CBus cho liá»n máº¡ch
+// Ä Ã£ sá»­a láº¡i tÃªn class I2CBus cho liá» n máº¡ch
 I2CBus::I2CBus(I2C_TypeDef *i2c)
 {
     m_i2c = i2c;
     m_mutex = xSemaphoreCreateMutex();
 }
+
+I2CBus g_i2c0_bus(I2C0);
 
 bool I2CBus::transfer(I2C_TransferSeq_TypeDef &seq)
 {

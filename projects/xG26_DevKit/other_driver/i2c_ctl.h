@@ -27,9 +27,10 @@ public:
 private:
     bool transfer(I2C_TransferSeq_TypeDef &seq);
     
-    // Sửa I2CSPM_TypeDef thành I2C_TypeDef
     I2C_TypeDef *m_i2c;
     SemaphoreHandle_t m_mutex;
 };
+
+extern I2CBus g_i2c0_bus;
 
 #endif

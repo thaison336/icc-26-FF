@@ -1,15 +1,11 @@
 #include "other_driver/actuators_bsp.h"
 
-// Äá»‹nh nghÄ©a chÃ¢n GPIO cho RGB LED chuáº©n trÃªn bo máº¡ch BRD2608A Rev A04
-// Thá»±c nghiá»‡m thá»±c táº¿: PA04 lÃ  Green, PB00 lÃ  Blue, PB02 lÃ  Red (Máº¡ch Active-Low: 0 = SÃ¡ng, 1 = Táº¯t)
-#define RGB_RED_PORT gpioPortD
-#define RGB_RED_PIN 7
+// Định nghĩa chân GPIO cho 2 LED trạng thái
+#define LED1_PORT gpioPortB
+#define LED1_PIN  2
 
-#define RGB_GREEN_PORT gpioPortA
-#define RGB_GREEN_PIN 4
-
-#define RGB_BLUE_PORT gpioPortB
-#define RGB_BLUE_PIN 0
+#define LED2_PORT gpioPortC
+#define LED2_PIN  9
 
 #define VIB_MOTOR_PORT gpioPortB
 #define VIB_MOTOR_PIN 4
@@ -24,20 +20,38 @@ void actuators_bsp_init(void)
     if (s_actuators_initialized)
         return;
 
-    // Khởi tạo PWM Hardware TIMER0 cho 3 kênh RGB LED
-    actuators_pwm_init();
+    // Cấu hình chân GPIO cho 2 LED ở chế độ Push-Pull (Mặc định tắt = 0)
+    GPIO_PinModeSet(LED1_PORT, LED1_PIN, gpioModePushPull, 0);
+    GPIO_PinModeSet(LED2_PORT, LED2_PIN, gpioModePushPull, 0);
+
+    // Cấu hình Buzzer
+    GPIO_PinModeSet(BUZZER_PORT, BUZZER_PIN, gpioModePushPull, 0);
 
     s_actuators_initialized = true;
-    printf("[ACTUATORS BSP] Hardware Actuators Initialized (PWM RGB LED, Haptic, Buzzer).\r\n");
+    printf("[ACTUATORS BSP] Hardware Actuators Initialized (Dual LED: PB02, PC09 | Buzzer: PB05).\r\n");
 }
 
-void actuators_set_rgb_led(bool red, bool green, bool blue)
+void actuators_set_leds(bool led1, bool led2)
 {
     if (!s_actuators_initialized)
         actuators_bsp_init();
 
-    // Đặt độ sáng PWM: true -> 255 (100%), false -> 0 (Tắt)
-    actuators_set_rgb_brightness_8bit(red ? 255 : 0, green ? 255 : 0, blue ? 255 : 0);
+    if (led1)
+        GPIO_PinOutSet(LED1_PORT, LED1_PIN);
+    else
+        GPIO_PinOutClear(LED1_PORT, LED1_PIN);
+
+    if (led2)
+        GPIO_PinOutSet(LED2_PORT, LED2_PIN);
+    else
+        GPIO_PinOutClear(LED2_PORT, LED2_PIN);
+}
+
+void actuators_set_rgb_led(bool red, bool green, bool blue)
+{
+    (void)green;
+    // Map tương thích: red -> LED1 (PB02), blue -> LED2 (PC09)
+    actuators_set_leds(red, blue);
 }
 
 void actuators_set_buzzer(bool enable)
@@ -56,10 +70,10 @@ void actuators_set_buzzer(bool enable)
 }
 
 /* =========================================================================
- * GHI Ä Ãˆ (OVERRIDE) CÃ C HÃ€M WEAK Cá»¦A FSM (somniguard_fsm.cpp)
+ * GHI ĐÈ (OVERRIDE) CÁC HÀM WEAK CỦA FSM (somniguard_fsm.cpp)
  * ========================================================================= */
 
-// Override hàm hiển thị RGB LED theo trạng thái FSM bằng PWM với độ sáng dịu thích hợp
+// Override hàm hiển thị LED theo trạng thái FSM (Sử dụng 2 LED: PB02 & PC09)
 extern "C" void somniguard_led_display(uint8_t stateDevice)
 {
     if (!s_actuators_initialized)
@@ -68,32 +82,32 @@ extern "C" void somniguard_led_display(uint8_t stateDevice)
     switch (stateDevice)
     {
     case FSM_TOP_INACTIVE:
-        // Tắt hết LED khi Inactive
-        actuators_set_rgb_brightness_8bit(0, 0, 0);
+        // Tắt cả 2 LED khi Inactive
+        actuators_set_leds(false, false);
         break;
 
     case FSM_TOP_OFF_FINGER_SUSPEND:
-        // Cảnh báo tuột ngón: Màu Vàng / Cam (Red 80 + Green 40)
-        actuators_set_rgb_brightness_8bit(80, 40, 0);
+        // Cảnh báo tuột ngón: Bật LED2 (PC09)
+        actuators_set_leds(false, true);
         break;
 
     case FSM_TOP_ACTIVE_MODE:
-        // Trạng thái Active / Thức: Màu Xanh Dương dịu mát (Blue 60)
-        actuators_set_rgb_brightness_8bit(0, 0, 60);
+        // Trạng thái thức / Active: Bật LED1 (PB02)
+        actuators_set_leds(true, false);
         break;
 
     case FSM_TOP_NORMAL_SLEEP:
-        // Trạng thái Ngủ đêm: Màu Xanh Lá mờ dịu mắt (Green 25 ~ 10% độ sáng)
-        actuators_set_rgb_brightness_8bit(0, 25, 0);
+        // Trạng thái ngủ đêm: Bật LED2 (PC09)
+        actuators_set_leds(false, true);
         break;
 
     case FSM_TOP_DEEP_ANALYSIS:
-        // Trạng thái Can thiệp Ngưng thở: Màu Đỏ báo động rực (Red 255)
-        actuators_set_rgb_brightness_8bit(255, 0, 0);
+        // Trạng thái can thiệp / Báo động ngưng thở: Bật CẢ 2 LED (PB02 + PC09)
+        actuators_set_leds(true, true);
         break;
 
     default:
-        actuators_set_rgb_brightness_8bit(0, 0, 0);
+        actuators_set_leds(false, false);
         break;
     }
 }

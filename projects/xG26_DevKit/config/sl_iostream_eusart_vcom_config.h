@@ -88,25 +88,44 @@
 // <<< sl:start pin_tool >>>
 // <eusart signal=TX,RX,(CTS),(RTS)> SL_IOSTREAM_EUSART_VCOM
 // $[EUSART_SL_IOSTREAM_EUSART_VCOM]
+#ifndef SL_IOSTREAM_EUSART_VCOM_PERIPHERAL      
 #define SL_IOSTREAM_EUSART_VCOM_PERIPHERAL       EUSART0
+#endif
+#ifndef SL_IOSTREAM_EUSART_VCOM_PERIPHERAL_NO   
 #define SL_IOSTREAM_EUSART_VCOM_PERIPHERAL_NO    0
+#endif
 
 // EUSART0 TX on PB02
+#ifndef SL_IOSTREAM_EUSART_VCOM_TX_PORT         
 #define SL_IOSTREAM_EUSART_VCOM_TX_PORT          SL_GPIO_PORT_B
+#endif
+#ifndef SL_IOSTREAM_EUSART_VCOM_TX_PIN          
 #define SL_IOSTREAM_EUSART_VCOM_TX_PIN           2
+#endif
 
 // EUSART0 RX on PB03
+#ifndef SL_IOSTREAM_EUSART_VCOM_RX_PORT         
 #define SL_IOSTREAM_EUSART_VCOM_RX_PORT          SL_GPIO_PORT_B
+#endif
+#ifndef SL_IOSTREAM_EUSART_VCOM_RX_PIN          
 #define SL_IOSTREAM_EUSART_VCOM_RX_PIN           3
+#endif
 
 // EUSART0 CTS on PA06
+#ifndef SL_IOSTREAM_EUSART_VCOM_CTS_PORT        
 #define SL_IOSTREAM_EUSART_VCOM_CTS_PORT         SL_GPIO_PORT_A
+#endif
+#ifndef SL_IOSTREAM_EUSART_VCOM_CTS_PIN         
 #define SL_IOSTREAM_EUSART_VCOM_CTS_PIN          6
+#endif
 
 // EUSART0 RTS on PA00
+#ifndef SL_IOSTREAM_EUSART_VCOM_RTS_PORT        
 #define SL_IOSTREAM_EUSART_VCOM_RTS_PORT         SL_GPIO_PORT_A
+#endif
+#ifndef SL_IOSTREAM_EUSART_VCOM_RTS_PIN         
 #define SL_IOSTREAM_EUSART_VCOM_RTS_PIN          0
-
+#endif
 // [EUSART_SL_IOSTREAM_EUSART_VCOM]$
 // <<< sl:end pin_tool >>>
 

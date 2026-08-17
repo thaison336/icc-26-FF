@@ -96,15 +96,6 @@ component:
   vendor: silabs
   id: i2c
 - package: simplicity_sdk
-  vendor: silabs
-  id: icm40627_driver
-- package: simplicity_sdk
-  vendor: silabs
-  id: imu_driver
-- package: simplicity_sdk
-  vendor: silabs
-  id: imu_driver_icm40627
-- package: simplicity_sdk
   instance:
   - vcom
   vendor: silabs
@@ -409,9 +400,6 @@ autoselected_components:
 - package: simplicity_sdk
   vendor: silabs
   id: i2c_core
-- package: simplicity_sdk
-  vendor: silabs
-  id: imu_driver_core
 - package: simplicity_sdk
   vendor: silabs
   id: interrupt_manager

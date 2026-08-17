@@ -18,8 +18,6 @@ add_executable(xG26_Devkit
     ../MAX30102_driver/MAX30105.cpp
     ../MAX30102_driver/MAX30102_manager.cpp
     ../other_driver/i2c_ctl.cpp
-    ../MPU6050_driver/MPU6050.cpp
-    ../MPU6050_driver/I2Cdev.cpp
     ../sensor_hub/sensor_hub.cpp
     ../somniguard_layer/somniguard_dsp.cpp
     ../somniguard_layer/somniguard_motion.cpp

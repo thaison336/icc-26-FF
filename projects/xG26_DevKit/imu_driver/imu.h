@@ -27,10 +27,10 @@ public:
     int available(void);
     bool IMU_getfifo(imu_data_float_t* data_out);
     static void isrCallback(uint8_t int_id, void *ctx);
+    void processInterrupt();
     void clearFIFO();
 private:
-    IMU(); 
-    void processInterrupt();
+    IMU();
 
     static const int BUFFER_SIZE = 200;
     typedef struct {

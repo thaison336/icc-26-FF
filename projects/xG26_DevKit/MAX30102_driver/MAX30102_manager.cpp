@@ -1,4 +1,5 @@
 #include "MAX30102_manager.h"
+#include "imu.h"
 #include "stdio.h"
 #include "em_gpio.h"
 #include "gpiointerrupt.h"
@@ -17,8 +18,11 @@ void MAX30102_manager::notifyFromISR()
     m_dataReady = true;
 
     BaseType_t hpw = pdFALSE;
-    vTaskNotifyGiveFromISR(m_taskHandle, &hpw);
-    portYIELD_FROM_ISR(hpw);
+    if (m_taskHandle != nullptr)
+    {
+        vTaskNotifyGiveFromISR(m_taskHandle, &hpw);
+        portYIELD_FROM_ISR(hpw);
+    }
 }
 void init_MAX30102_Interrupt(MAX30102_manager *MAX30102Sensor)
 {
@@ -230,22 +234,18 @@ void MAX30102_manager::task()
         // Chá» interrupt
         //-----------------------------------
 
-        ulTaskNotifyTake(pdTRUE,
-                         portMAX_DELAY);
+        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
         if (m_dataReady)
         {
-           // printf("[MAX30102] Interrupt!!!!!\n");
             m_dataReady = false;
             uint8_t int1 = m_sensor.getINT1();
             uint8_t int2 = m_sensor.getINT2();
-          //  printf("Elapsed Time: %lu ms\n", (unsigned long)xTaskGetTickCount() * portTICK_PERIOD_MS);
             int n = m_sensor.check();
-            // printf("INT1=%02X INT2=%02X RP=%u WP=%u samples=%d\n",
-            //    int1,
-            //    int2,
-            //    m_sensor.getReadPointer(),
-            //    m_sensor.getWritePointer(),
-            //    n);
+            for (int i = 0; i < n; i++)
+            {
+                // Đồng bộ lấy dữ liệu MPU6050 cùng thời điểm với MAX30102
+                IMU::getInstance().processInterrupt();
+            }
         }
         while (xQueueReceive(m_cmdQueue,
                              &cmd,

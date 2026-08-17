@@ -34,26 +34,47 @@
 // <<< sl:start pin_tool >>>
 // <eusart signal=TX,RX,SCLK,CS> SL_ICM40627_SPI_EUSART
 // $[EUSART_SL_ICM40627_SPI_EUSART]
-#define SL_ICM40627_SPI_EUSART_PERIPHERAL               EUSART1
-#define SL_ICM40627_SPI_EUSART_PERIPHERAL_NO            1
+#ifndef SL_ICM40627_SPI_EUSART_PERIPHERAL       
+#define SL_ICM40627_SPI_EUSART_PERIPHERAL        EUSART1
+#endif
+#ifndef SL_ICM40627_SPI_EUSART_PERIPHERAL_NO    
+#define SL_ICM40627_SPI_EUSART_PERIPHERAL_NO     1
+#endif
 
-#define SL_ICM40627_SPI_EUSART_TX_PORT                  SL_GPIO_PORT_C
-#define SL_ICM40627_SPI_EUSART_TX_PIN                   3
+// EUSART1 TX on PC03
+#ifndef SL_ICM40627_SPI_EUSART_TX_PORT          
+#define SL_ICM40627_SPI_EUSART_TX_PORT           SL_GPIO_PORT_C
+#endif
+#ifndef SL_ICM40627_SPI_EUSART_TX_PIN           
+#define SL_ICM40627_SPI_EUSART_TX_PIN            3
+#endif
 
-#define SL_ICM40627_SPI_EUSART_RX_PORT                  SL_GPIO_PORT_C
-#define SL_ICM40627_SPI_EUSART_RX_PIN                   2
+// EUSART1 RX on PC02
+#ifndef SL_ICM40627_SPI_EUSART_RX_PORT          
+#define SL_ICM40627_SPI_EUSART_RX_PORT           SL_GPIO_PORT_C
+#endif
+#ifndef SL_ICM40627_SPI_EUSART_RX_PIN           
+#define SL_ICM40627_SPI_EUSART_RX_PIN            2
+#endif
 
-#define SL_ICM40627_SPI_EUSART_SCLK_PORT                SL_GPIO_PORT_C
-#define SL_ICM40627_SPI_EUSART_SCLK_PIN                 1
+// EUSART1 SCLK on PC01
+#ifndef SL_ICM40627_SPI_EUSART_SCLK_PORT        
+#define SL_ICM40627_SPI_EUSART_SCLK_PORT         SL_GPIO_PORT_C
+#endif
+#ifndef SL_ICM40627_SPI_EUSART_SCLK_PIN         
+#define SL_ICM40627_SPI_EUSART_SCLK_PIN          1
+#endif
 
-#define SL_ICM40627_SPI_EUSART_CS_PORT                  SL_GPIO_PORT_C
-#define SL_ICM40627_SPI_EUSART_CS_PIN                   0
 // [EUSART_SL_ICM40627_SPI_EUSART]$
 
 // <gpio optional=true> SL_ICM40627_INT
 // $[GPIO_SL_ICM40627_INT]
-#define SL_ICM40627_INT_PORT                            SL_GPIO_PORT_B
-#define SL_ICM40627_INT_PIN                             1
+#ifndef SL_ICM40627_INT_PORT                    
+#define SL_ICM40627_INT_PORT                     SL_GPIO_PORT_B
+#endif
+#ifndef SL_ICM40627_INT_PIN                     
+#define SL_ICM40627_INT_PIN                      1
+#endif
 // [GPIO_SL_ICM40627_INT]$
 // <<< sl:end pin_tool >>>
 

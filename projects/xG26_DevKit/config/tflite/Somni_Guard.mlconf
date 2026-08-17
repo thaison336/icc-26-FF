@@ -39,7 +39,7 @@ codegen:
   linker_sections: {}
   strip_strings: true
   generate_op_resolver: true
-  prefix: model-stem
+  prefix: somni_guard
   logger_enabled: false
   model_header:
     filename: "{prefix}_generated.hpp"
