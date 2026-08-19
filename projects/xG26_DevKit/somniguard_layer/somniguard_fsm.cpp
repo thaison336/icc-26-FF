@@ -456,7 +456,7 @@ void somniguard_fsm_task(void *pvParameters)
                     fsm->hub->MAX30102_driver().setPulseAmplitudeRed(0);
                     fsm->hub->MAX30102_driver().setPulseAmplitudeIR(0);
                     fsm->hub->MAX30102_driver().driver().shutDown();
-                    fsm->hub->imu_driver().setup(0, 1);
+                    fsm->hub->imu_driver().sleep(); // Đặt MPU6050 vào sleep mode (PWR_MGMT_1 SLEEP bit)
                 }
                 // 4. Gửi bản tin BLE báo đã chuyển sang INACTIVE 1 lần duy nhất
                 somniguard_ble_notify_event(
@@ -492,6 +492,7 @@ void somniguard_fsm_task(void *pvParameters)
                     fsm->hub->MAX30102_driver().setPulseAmplitudeRed(0);
                     fsm->hub->MAX30102_driver().setPulseAmplitudeIR(0);
                     fsm->hub->MAX30102_driver().driver().shutDown();
+                    fsm->hub->imu_driver().sleep();
                 }
                 fsm->requested_ppg_freq = 0;
                 fsm->requested_imu_freq = 0;
@@ -555,14 +556,13 @@ void somniguard_fsm_task(void *pvParameters)
                 fsm->prev_top_state = fsm->top_state;
                 fsm->top_state = target_state;
                 fsm->top_state_entry_ms = timestamp_ms;
-                fsm->off_finger_entry_done = false;
                 fsm->active_init_done = false;
             }
             else if (timestamp_ms - fsm->top_state_entry_ms >= 60000UL)
             {
                 // Quá 60 giây không đeo lại -> Chuyển INACTIVE (Chạy EM4 Shutoff)
                 fsm->top_state = FSM_TOP_INACTIVE;
-                fsm->off_finger_entry_done = false;
+                fsm->inactive_entry_done = false;
             }
             break;
         }
@@ -578,6 +578,7 @@ void somniguard_fsm_task(void *pvParameters)
                 fsm->prev_top_state = fsm->top_state;
                 fsm->top_state = FSM_TOP_OFF_FINGER_SUSPEND;
                 fsm->top_state_entry_ms = now_ms;
+                fsm->off_finger_entry_done = false;
                 break;
             }
 
@@ -606,6 +607,7 @@ void somniguard_fsm_task(void *pvParameters)
                 uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
                 fsm->prev_top_state = fsm->top_state;
                 fsm->top_state = FSM_TOP_OFF_FINGER_SUSPEND;
+                fsm->off_finger_entry_done = false;
                 fsm->top_state_entry_ms = now_ms;
                 break;
             }
@@ -619,12 +621,12 @@ void somniguard_fsm_task(void *pvParameters)
                 break;
             }
 
-            // Phát hiện ngưng thở/bất thường -> DEEP ANALYSIS
-            if (fsm->dsp_res.signal_valid && (fsm->dsp_res.spo2 < 93.0f))
-            {
-                somniguard_fsm_set_top_state(fsm, FSM_TOP_DEEP_ANALYSIS);
-                somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_IDLE);
-            }
+            // // Phát hiện ngưng thở/bất thường -> DEEP ANALYSIS
+            // if (fsm->dsp_res.signal_valid && (fsm->dsp_res.spo2 < 93.0f))
+            // {
+            //     somniguard_fsm_set_top_state(fsm, FSM_TOP_DEEP_ANALYSIS);
+            //     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_IDLE);
+            // }
             break;
         }
 
@@ -642,6 +644,7 @@ void somniguard_fsm_task(void *pvParameters)
             if (!fsm->dsp_pro.is_finger_attached)
             {
                 somniguard_fsm_set_top_state(fsm, FSM_TOP_OFF_FINGER_SUSPEND);
+                fsm->off_finger_entry_done = false;
                 break;
             }
 
@@ -689,12 +692,13 @@ void somniguard_deep_analysis_task(void *pvParameters)
             {
             case SUB_INTERVENT_IDLE:
                 // 1. Chạy AI Model từ bộ đệm Tensor
+                fsm->last_ai_event = AI_EVENT_NORMAL;
                 if (fsm->buffer_pro.is_full)
                 {
                     fsm->last_ai_event = somniguard_ai_predict(&fsm->buffer_pro);
                 }
 
-                // Phục hồi tốt: SpO2 khôi phục >= 95% và last_ai_event == AI_EVENT_NORMAL -> NORMAL_SLEEP
+                // Phục hồi tốt: SpO2 khôi phục >= 95% VÀ AI xác nhận bình thường -> NORMAL_SLEEP
                 if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f && fsm->last_ai_event == AI_EVENT_NORMAL)
                 {
                     uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
@@ -712,20 +716,22 @@ void somniguard_deep_analysis_task(void *pvParameters)
                     fsm->last_ac_sample_ms = 0;
                     memset(fsm->ac_history, 0, sizeof(fsm->ac_history));
                 }
-
-                // 2. Quyết định cấp can thiệp khởi phát ban đầu dựa trên chẩn đoán AI & SpO2
-                if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL || fsm->dsp_res.spo2 < 85.0f)
+                // 2. Quyết định cấp can thiệp khởi phát ban đầu dựa trên chẩn đoán AI & SpO2.
+                //    Dùng else-if để KHÔNG kích hoạt can thiệp khi đã phục hồi ở trên
+                else if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL && (fsm->dsp_res.spo2 < 85.0f && fsm->dsp_res.signal_valid))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_BLE_ALARM);
                 }
-                else if (fsm->last_ai_event == AI_EVENT_APNEA_SEVERE || fsm->dsp_res.spo2 < 90.0f)
+                else if (fsm->last_ai_event == AI_EVENT_APNEA_SEVERE && (fsm->dsp_res.spo2 < 90.0f && fsm->dsp_res.signal_valid))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
                 }
-                else
+                else if (fsm->last_ai_event >= AI_EVENT_APNEA_MILD && fsm->dsp_res.signal_valid)
                 {
+                    // AI còn thấy bất thường nhẹ nhưng SpO2 chưa đủ ngưỡng leo thang -> can thiệp nhẹ
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_MILD_VIBRATE);
                 }
+                // else: AI = NORMAL & SpO2 chưa đến 95% -> giữ IDLE chờ buffer mới
                 break;
 
             case SUB_INTERVENT_MILD_VIBRATE:
@@ -735,7 +741,7 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 fsm->buzzer_alarm = false;
                 fsm->ble_sos_flag = false;
 
-                if (elapsed_in_sub >= FSM_MILD_VIB_DURATION_MS)
+                if (elapsed_in_sub >= HAPTIC_DURATION_MILD_MS)
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
                 }
@@ -748,7 +754,7 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 fsm->buzzer_alarm = false;
                 fsm->ble_sos_flag = false;
 
-                if (elapsed_in_sub >= FSM_STRONG_VIB_DURATION_MS)
+                if (elapsed_in_sub >= HAPTIC_DURATION_STRONG_MS)
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
                 }
@@ -775,10 +781,11 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 fsm->ble_sos_flag = false;
 
                 // A. Kiểm tra hồi phục thành công (SpO2 >= 95%)
-                if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f)
+                if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f && !fsm->motion_res.is_moving)
                 {
                     // Đã khôi phục thành công -> Về IDLE (Top-FSM sẽ chuyển sang NORMAL_SLEEP)
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_IDLE);
+                    somniguard_buffer_reset(&fsm->buffer_pro); // Reset buffer để tích lũy baseline mới
                 }
                 else if (elapsed_in_sub >= FSM_EVALUATE_TIMEOUT_MS)
                 {
@@ -839,7 +846,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ; // 25Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
                     fsm->hub->MAX30102_driver().driver().wakeUp();
-                    //   fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
+                    fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
                     fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_led_display(FSM_TOP_ACTIVE_MODE);
                     fsm->hub->agcAmplitudeLed();
@@ -1009,7 +1016,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
                 }
 
                 // --- Ngưỡng 1 (Cấp bách): SpO2 tụt dưới 90% khi nằm yên ---
-                if (spo2 < FSM_SPO2_CRITICAL_THRESHOLD && fsm->dsp_res.signal_valid && fsm->motion_pro.motion_threshold < PARAM_IMU_MOTION_THRESHOLD)
+                if (spo2 < FSM_SPO2_CRITICAL_THRESHOLD && fsm->dsp_res.signal_valid && !fsm->motion_res.is_moving)
                 {
                     fsm->anomaly_detect_ms = 0;
                     fsm->anomaly_sustained = false;
@@ -1020,7 +1027,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
 
                 // --- Ngưỡng 2 (Cứng): SpO2 tụt dưới 93% ---
                 // Nguy cơ ngưng thở rõ ràng → chuyển DEEP_ANALYSIS ngay lập tức
-                if (spo2 < FSM_SPO2_WARN_THRESHOLD && fsm->dsp_res.signal_valid && fsm->motion_pro.motion_threshold < PARAM_IMU_MOTION_THRESHOLD)
+                if (spo2 < FSM_SPO2_WARN_THRESHOLD && fsm->dsp_res.signal_valid && !fsm->motion_res.is_moving)
                 {
                     // printf("[SLEEP] ANOMALY Tier-1: SpO2 %.1f%% < %.0f%% threshold! -> DEEP_ANALYSIS\r\n",
                     //        spo2, FSM_SPO2_WARN_THRESHOLD);
@@ -1035,7 +1042,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
                 // --- Ngưỡng 3 (Cảnh báo sớm - Co mạch ngoại vi do giao cảm): AC Drop >= 35% trong cửa sổ 10 giây ---
                 // Nguồn lâm sàng: JCSM & PAT studies (thresshold_hospital.md:L26-L29)
                 // So sánh AC hiện tại với AC ở 10 giây trước (mẫu cũ nhất trong vòng tròn)
-                if (fsm->ac_history_count >= 10 && !fsm->motion_res.is_moving && fsm->motion_pro.motion_threshold < PARAM_IMU_MOTION_THRESHOLD)
+                if (fsm->ac_history_count >= 10 && !fsm->motion_res.is_moving)
                 {
                     // Vị trí ac_history_idx hiện tại chính là con trỏ tới mẫu cũ nhất ghi cách đây 10 giây
                     float ac_10s_ago = fsm->ac_history[fsm->ac_history_idx];

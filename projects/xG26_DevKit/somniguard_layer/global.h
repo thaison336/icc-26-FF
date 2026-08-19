@@ -25,10 +25,10 @@ extern "C"
  * 1. SYSTEM CONFIGURATION MACROS
  * ========================================================================= */
 //========================IMU DEFINE=====================//
-#define IMU_SAMPLING_RATE_ACTIVE_HZ 25   // Tần số lấy mẫu IMU ở trạng thái ACTIVE (25Hz)
-#define IMU_SAMPLING_RATE_SLEEP_HZ 50    // Tần số lấy mẫu IMU ở trạng thái NORMAL_SLEEP (50Hz)
-#define IMU_MAX_WINDOW_SIZE 128          // Dung lượng tối đa bộ đệm IMU ring buffer (128 mẫu)
-#define PARAM_IMU_MOTION_THRESHOLD 0.15f // Ngưỡng độ lệch chuẩn gia tốc phát hiện cựa tay (0.25g)
+#define IMU_SAMPLING_RATE_ACTIVE_HZ 25  // Tần số lấy mẫu IMU ở trạng thái ACTIVE (25Hz)
+#define IMU_SAMPLING_RATE_SLEEP_HZ 50   // Tần số lấy mẫu IMU ở trạng thái NORMAL_SLEEP (50Hz)
+#define IMU_MAX_WINDOW_SIZE 128         // Dung lượng tối đa bộ đệm IMU ring buffer (128 mẫu)
+#define PARAM_IMU_MOTION_THRESHOLD 0.1f // Ngưỡng độ lệch chuẩn gia tốc phát hiện cựa tay (0.25g)
 #define AVARAGE_SAMPLING_IMU 1
 #define ARTIFACT_FLAG 0
 
@@ -46,7 +46,7 @@ extern "C"
 #define TENSOR_COLS 28 // 28 Cột: [0: SpO2 (1Hz), 1: BPM (1Hz), 2 - 26: PPG IR AC Norm (50Hz), 27: Motion (1Hz)]
 
 /* Ngưỡng tham chiếu sinh lý học */
-#define SPO2_MIN 70.0f                  // SpO2 tối thiểu hợp lệ (%)
+#define SPO2_MIN 75.0f                  // SpO2 tối thiểu hợp lệ (%)
 #define SPO2_MAX 100.0f                 // SpO2 tối đa hợp lệ (%)
 #define BPM_MIN 40.0f                   // Nhịp tim tối thiểu (BPM)
 #define BPM_MAX 200.0f                  // Nhịp tim tối đa (BPM)

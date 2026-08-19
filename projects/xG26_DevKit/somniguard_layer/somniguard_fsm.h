@@ -30,7 +30,7 @@ extern "C"
 #define FSM_INACTIVE_TIMEOUT_MS (1800000UL) // 30 phút không đeo -> INACTIVE
 #define FSM_SLEEP_ENTER_TIME_MS (120000UL)  // 3 phút không cựa tay -> NORMAL_SLEEP
 #define FSM_WAKE_MOTION_TIME_MS (300000UL)  // 300s cựa tay liên tục -> ACTIVE_MODE
-#define FSM_MILD_VIB_DURATION_MS (3000UL)   // 3 giây rung nhẹ
+#define FSM_MILD_VIB_DURATION_MS (5000UL)   // 5 giây rung nhẹ
 #define FSM_STRONG_VIB_DURATION_MS (5000UL) // 5 giây rung mạnh
 #define FSM_EVALUATE_TIMEOUT_MS (10000UL)   // 10 giây đánh giá phục hồi sau can thiệp
 

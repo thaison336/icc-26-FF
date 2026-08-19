@@ -45,6 +45,17 @@ sl_status_t IMU::setup(uint16_t sample_rate, uint8_t averaging)
     return SL_STATUS_OK;
 }
 
+void IMU::sleep()
+{
+    mpuSensor.setSleepEnabled(true);
+}
+
+void IMU::wakeup()
+{
+    // Chỉ đánh thức chip, chưa configure lại — gọi setup() sau nếu cần
+    mpuSensor.setSleepEnabled(false);
+}
+
 void IMU::isrCallback(uint8_t int_id, void *ctx)
 {
     (void)int_id;
