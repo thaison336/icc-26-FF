@@ -633,6 +633,15 @@ void app_init(void)
         tskIDLE_PRIORITY + 2,
         NULL);
 
+    // // 9. Task AI Benchmark Serial (Lắng nghe Python script)
+    // xTaskCreate(
+    //     main_app_task,
+    //     "AIBenchmark",
+    //     1024,
+    //     NULL,
+    //     tskIDLE_PRIORITY + 3,
+    //     NULL);
+
     // Báo hiệu khởi tạo hệ thống & Tasks thành công (Chớp 2 LED)
     somniguard_led_boot_success();
 

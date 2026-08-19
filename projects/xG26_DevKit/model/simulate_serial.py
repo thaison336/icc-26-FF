@@ -10,7 +10,7 @@ def main():
     default_data = os.path.join(script_dir, 'test_windows.npz')
     
     parser = argparse.ArgumentParser(description="Evaluate SomniGuard Model over Serial")
-    parser.add_argument('--port', type=str, default='COM3', help='Serial port (e.g. COM3)')
+    parser.add_argument('--port', type=str, default='COM12', help='Serial port (e.g. COM3)')
     parser.add_argument('--baud', type=int, default=115200, help='Baud rate')
     parser.add_argument('--data', type=str, default=default_data, help='Path to test_windows.npz')
     args = parser.parse_args()
@@ -87,6 +87,8 @@ def main():
         while True:
             if ser.in_waiting > 0:
                 line = ser.readline().decode('utf-8', errors='ignore').strip()
+                if line:
+                    print(f"[BOARD]: {line}")
                 if line.startswith("PRED:"):
                     try:
                         pred_val = int(line.split(":")[1])
@@ -128,10 +130,10 @@ def main():
     y_true_eval = y_true[:len(y_pred)]
     
     acc = accuracy_score(y_true_eval, y_pred)
-    prec = precision_score(y_true_eval, y_pred, zero_division=0)
-    rec = recall_score(y_true_eval, y_pred, zero_division=0)
-    f1 = f1_score(y_true_eval, y_pred, zero_division=0)
-    cm = confusion_matrix(y_true_eval, y_pred)
+    prec = precision_score(y_true_eval, y_pred, average='macro', zero_division=0)
+    rec = recall_score(y_true_eval, y_pred, average='macro', zero_division=0)
+    f1 = f1_score(y_true_eval, y_pred, average='macro', zero_division=0)
+    cm = confusion_matrix(y_true_eval, y_pred, labels=[0, 1, 2])
     
     avg_latency = np.mean(latencies) if latencies else 0.0
 

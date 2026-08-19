@@ -18,6 +18,10 @@
 #define PPG_COMPRESS_STAT7_N_PASSTHROUGH   3
 #define PPG_COMPRESS_STAT7_N_OUT_CHANNELS  10
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Compresses a single frame's 25 raw IR samples into
 // 7 feature values, written to out[0..6].
 void ppg_compress_stat7_compress_frame(const float *ir_samples, int n_samples, float *out);
@@ -28,5 +32,9 @@ void ppg_compress_stat7_compress_frame(const float *ir_samples, int n_samples, f
 // in_window:  flat array, 60 * 28 floats, row-major
 // out_window: flat array, 60 * 10 floats, row-major (caller-allocated)
 void ppg_compress_stat7_compress_window(const float *in_window, float *out_window);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // PPG_COMPRESS_STAT7_H_
