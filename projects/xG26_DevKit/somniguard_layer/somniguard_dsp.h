@@ -85,6 +85,8 @@ typedef struct
     float final_spo2;
     float buf_spo2[5];
     bool is_first_calc;
+    float rms_red;
+    float rms_ir;
 } somniguard_dsp_t;
 
 /**

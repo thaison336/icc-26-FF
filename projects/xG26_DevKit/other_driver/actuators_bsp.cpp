@@ -168,11 +168,11 @@ extern "C" void somniguard_led_boot_sequence(void)
     if (!s_actuators_initialized)
         actuators_bsp_init();
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 20; i++)
     {
-        actuators_set_leds(true, false);  // LED1 ON
+        actuators_set_leds(true, false); // LED1 ON
         vTaskDelay(pdMS_TO_TICKS(120));
-        actuators_set_leds(false, true);  // LED2 ON
+        actuators_set_leds(false, true); // LED2 ON
         vTaskDelay(pdMS_TO_TICKS(120));
     }
     actuators_set_leds(false, false);
@@ -184,7 +184,7 @@ extern "C" void somniguard_led_boot_success(void)
     if (!s_actuators_initialized)
         actuators_bsp_init();
 
-    for (int i = 0; i < 2; i++)
+    for (int i = 0; i < 10; i++)
     {
         actuators_set_leds(true, true);
         vTaskDelay(pdMS_TO_TICKS(150));
@@ -208,4 +208,3 @@ extern "C" void somniguard_led_sleep_buffering_start(void)
     }
     actuators_set_leds(false, false); // Đảm bảo tắt hẳn (Dark-by-Default)
 }
-

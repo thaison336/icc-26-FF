@@ -47,7 +47,7 @@
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
 
-#define USE_MOCK_TENSOR_BUFFER 0
+#define USE_MOCK_TENSOR_BUFFER 1
 
 #if USE_MOCK_TENSOR_BUFFER
 // Hàm sinh dữ liệu Tensor Buffer giả lập:
@@ -143,18 +143,9 @@ void DataProcessingTask(void *pvParameters)
             // 4. Khi có stride DSP mới (mỗi 1s/0.5s), đẩy đầy đủ 4 kênh vào Tensor Buffer
             if (has_new_stride && (fsm->top_state == FSM_TOP_NORMAL_SLEEP || fsm->top_state == FSM_TOP_DEEP_ANALYSIS))
             {
-                somniguard_buffer_push_50hz(
-                    &fsm->buffer_pro,
-                    fsm->dsp_res.spo2,
-                    fsm->dsp_res.heart_rate,
-                    ac_ir_buf,
-                    fsm->motion_res.motion_energy);
-            }
-            {
                 float push_spo2 = fsm->dsp_res.spo2;
                 float push_bpm = fsm->dsp_res.heart_rate;
                 float push_motion = fsm->motion_res.motion_energy;
-
 #if USE_MOCK_TENSOR_BUFFER
                 get_mock_tensor_metrics(fsm, timestamp_ms, &push_spo2, &push_bpm, &push_motion);
                 fsm->dsp_res.spo2 = push_spo2;
@@ -162,7 +153,6 @@ void DataProcessingTask(void *pvParameters)
                 fsm->motion_res.motion_energy = push_motion;
                 fsm->dsp_res.signal_valid = true;
 #endif
-
                 somniguard_buffer_push_50hz(
                     &fsm->buffer_pro,
                     push_spo2,
@@ -624,14 +614,14 @@ void app_init(void)
         tskIDLE_PRIORITY + 1,
         NULL);
 
-    // 8. Task Test Haptic Motor (PA07) - Chạy trực tiếp
-    xTaskCreate(
-        TestHapticMotorTask,
-        "TestHaptic",
-        512,
-        NULL,
-        tskIDLE_PRIORITY + 2,
-        NULL);
+    // // 8. Task Test Haptic Motor (PA07) - Chạy trực tiếp
+    // xTaskCreate(
+    //     TestHapticMotorTask,
+    //     "TestHaptic",
+    //     512,
+    //     NULL,
+    //     tskIDLE_PRIORITY + 2,
+    //     NULL);
 
     // Báo hiệu khởi tạo hệ thống & Tasks thành công (Chớp 2 LED)
     somniguard_led_boot_success();

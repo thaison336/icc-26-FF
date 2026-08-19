@@ -38,6 +38,7 @@ extern "C"
 #define FSM_SPO2_WARN_THRESHOLD 93.0f     // Ngưỡng 1: SpO2 < 93% -> DEEP_ANALYSIS ngay
 #define FSM_SPO2_CRITICAL_THRESHOLD 90.0f // Ngưỡng 2: SpO2 < 90% -> DEEP_ANALYSIS ngay
 #define FSM_ANOMALY_SUSTAIN_MS (10000UL)  // Ngưỡng 3: SpO2 drop >= 4% kéo dài 10s -> DEEP_ANALYSIS
+#define FSM_AC_DROP_SUSTAIN_MS (5000UL)   // Ngưỡng 4: PPG AC drop >= 35% duy trì 5s -> DEEP_ANALYSIS
 
     /**
      * @brief Cấu trúc quản lý toàn bộ trạng thái FSM 2 Tầng và các cờ điều khiển ngoại vi
@@ -88,6 +89,12 @@ extern "C"
         float spo2_baseline;        // SpO2 baseline khi bắt đầu MONITORING (để phát hiện drop tương đối)
         uint32_t anomaly_detect_ms; // Thời điểm bắt đầu đếm bất thường bền vững (0 = chưa phát hiện)
         bool anomaly_sustained;     // Cờ: đang trong giai đoạn đếm bất thường bền vững
+
+        /* Bộ đệm 10 giây theo dõi độ dốc sụt giảm biên độ PPG AC (Vasoconstriction Drop 10s) */
+        float ac_history[10];       // Lưu RMS AC mỗi 1s trong 10s gần nhất
+        uint8_t ac_history_idx;     // Con trỏ ghi vòng tròn (0..9)
+        uint8_t ac_history_count;   // Số mẫu 1s đã tích lũy (tối đa 10)
+        uint32_t last_ac_sample_ms; // Thời điểm lấy mẫu AC 1s gần nhất
     } somniguard_fsm_t;
 
     /**
