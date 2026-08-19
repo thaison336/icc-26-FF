@@ -1,7 +1,7 @@
 # Per-instance MVP compiler config for ml_model components.
 # Keep model null so SLC does not validate a tflite path when the component is added.
 
-model: Somni_Guard.tflite
+model: somni_guard_v2.tflite
 output: null
 accelerator: auto
 verbose: false
@@ -39,7 +39,7 @@ codegen:
   linker_sections: {}
   strip_strings: true
   generate_op_resolver: true
-  prefix: somni_guard
+  prefix: model-stem
   logger_enabled: false
   model_header:
     filename: "{prefix}_generated.hpp"

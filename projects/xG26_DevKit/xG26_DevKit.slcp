@@ -45,7 +45,7 @@ toolchain_settings:
 component:
 - package: aiml
   instance:
-  - Somni_Guard
+  - somni_guard_v2
   vendor: silabs
   id: ml_model
 - package: simplicity_sdk

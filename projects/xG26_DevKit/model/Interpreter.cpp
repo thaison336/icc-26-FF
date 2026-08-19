@@ -9,28 +9,28 @@
 #define COMPRESSED_CHANNELS PPG_COMPRESS_STAT7_N_OUT_CHANNELS
 
 static const float STAT7_MEAN[10] = {
-    -1.0107890367507935f,
-    462.87542724609375f,
-    -713.2999267578125f,
-    734.8062744140625f,
-    710.6092529296875f,
-    0.09494941681623459f,
-    -0.794873833656311f,
-    94.79252624511719f,
-    86.17684936523438f,
-    0.006570133380591869f};
+    -9.08638412511209e-06f,
+    0.0030737612396478653f,
+    -0.00475749047473073f,
+    0.004848856944590807f,
+    0.004867485724389553f,
+    0.05842871591448784f,
+    -0.7696008682250977f,
+    94.3064193725586f,
+    83.89511108398438f,
+    0.0058854068629443645f};
 
 static const float STAT7_STD[10] = {
-    655.80126953125f,
-    297.2281494140625f,
-    796.1035766601562f,
-    708.5175170898438f,
-    477.2164001464844f,
-    0.6425100564956665f,
-    1.0446852445602417f,
-    3.6999270915985107f,
-    17.4013614654541f,
-    0.00964649673551321f};
+    0.004771340172737837f,
+    0.0023004955146461725f,
+    0.005945245269685984f,
+    0.005335461813956499f,
+    0.003716951236128807f,
+    0.6678735017776489f,
+    1.0906718969345093f,
+    5.015106678009033f,
+    19.705257415771484f,
+    0.009256711229681969f};
 
 static TfLiteTensor *model_input = nullptr;
 static TfLiteTensor *model_output = nullptr;
@@ -152,7 +152,14 @@ void process_new_frame(const float *frame)
         prob = (output_q - model_output->params.zero_point) * model_output->params.scale;
     }
 
-    int pred = (prob >= 0.5f) ? 1 : 0;
+    int pred = 0;
+    if (prob < 0.2783660571179704f) {
+        pred = 0; // Normal
+    } else if (prob < 0.862608100601177f) {
+        pred = 1; // Abnormal
+    } else {
+        pred = 2; // Emergency
+    }
 
     printf("PRED:%d\r\n", pred);
     printf("CONF:%.4f\r\n", prob);
@@ -231,7 +238,14 @@ float predict_window_confidence(const float *window_60x28)
         prob = (output_q - model_output->params.zero_point) * model_output->params.scale;
     }
 
-    int pred = (prob >= 0.5f) ? 1 : 0;
+    int pred = 0;
+    if (prob < 0.2783660571179704f) {
+        pred = 0; // Normal
+    } else if (prob < 0.862608100601177f) {
+        pred = 1; // Abnormal
+    } else {
+        pred = 2; // Emergency
+    }
     printf("[AI INF] Inference OK -> Pred: %d | Confidence: %.4f\r\n", pred, prob);
     fflush(stdout);
 
