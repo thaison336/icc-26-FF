@@ -24,6 +24,9 @@ public:
     // Chỉ cho phép tinh chỉnh Tần số lấy mẫu và Bộ lọc trung bình
     sl_status_t setup(uint16_t sample_rate = 50, uint8_t averaging = 1);
 
+    void sleep();   // Đặt MPU6050 vào chế độ sleep (tiết kiệm điện)
+    void wakeup();  // Đánh thức MPU6050, cần gọi setup() lại sau đó
+
     int available(void);
     bool IMU_getfifo(imu_data_float_t* data_out);
     static void isrCallback(uint8_t int_id, void *ctx);

@@ -47,7 +47,7 @@
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
 
-#define USE_MOCK_TENSOR_BUFFER 1
+#define USE_MOCK_TENSOR_BUFFER 0
 
 #if USE_MOCK_TENSOR_BUFFER
 // Hàm sinh dữ liệu Tensor Buffer giả lập:
@@ -74,7 +74,7 @@ static void get_mock_tensor_metrics(somniguard_fsm_t *fsm, uint32_t timestamp_ms
     }
 
     // Giai đoạn 2: Chu kỳ lặp 60 giây (45s Normal + 15s Deep Analysis)
-    uint32_t cycle_ms = (timestamp_ms - 15000) % 60000;
+    uint32_t cycle_ms = (timestamp_ms - 20000) % 65000;
 
     if (cycle_ms < 45000)
     {
@@ -220,7 +220,7 @@ void FsmLoggerTask(void *pvParameters)
     uint32_t log_counter = 0;
     while (1)
     {
-        vTaskDelay(pdMS_TO_TICKS(1000)); // In log mỗi 1 giây
+        vTaskDelay(pdMS_TO_TICKS(500)); // In log mỗi 1 giây
         log_counter++;
         // printf("here");
         const char *top_str = somniguard_top_state_str(fsm->top_state);
@@ -540,7 +540,7 @@ void app_init(void)
     }
 
     // Chạy AGC calibration trước khi tạo FSM tasks
-    mySensorHub.agcAmplitudeLed();
+    // mySensorHub.agcAmplitudeLed();
 
     // // Khởi tạo Bộ Não FSM
     somniguard_fsm_init(&myFSM, &mySensorHub);
