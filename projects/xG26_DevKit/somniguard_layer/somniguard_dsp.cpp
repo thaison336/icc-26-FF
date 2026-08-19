@@ -160,8 +160,9 @@ void somniguard_dsp_update_bpm(somniguard_dsp_t *dsp, float acIR_filtered, uint3
 /**
  * @brief TÃ­nh toÃ¡n SpO2 vÃ  R tá»« bá»™ Ä‘á»‡m trÃ²n khi Ä‘á»§ máº«u (DSP_WINDOW_SIZE = 128).
  * @param dsp Con trá» tá»›i struct somniguard_dsp_t
- * @param out_spo2 Con trá» nháº­n giÃ¡ trá»‹ SpO2 tÃ­nh toÃ¡n (%)
- * @param out_r Con trá» nháº­n giÃ¡ trá»‹ tá»· sá»‘ Ratio-of-Ratios (R)
+ * @param dsp Con trá»  tá»›i struct somniguard_dsp_t
+ * @param out_spo2 Con trá»  nháº­n giÃ¡ trá»‹ SpO2 tÃ­nh toÃ¡n (%)
+ * @param out_r Con trá»  nháº­n giÃ¡ trá»‹ tá»· sá»‘ Ratio-of-Ratios (R)
  * @return true náº¿u tÃ­nh toÃ¡n thÃ nh cÃ´ng, false náº¿u chÆ°a Ä‘á»§ Ä‘á»‡m hoáº·c tÃ­n hiá»‡u lá»—i
  */
 bool somniguard_dsp_calculate_spo2(somniguard_dsp_t *dsp, float *out_spo2, float *out_r)
@@ -179,6 +180,8 @@ bool somniguard_dsp_calculate_spo2(somniguard_dsp_t *dsp, float *out_spo2, float
     }
     float rmsRed = sqrtf(sum_sq_red / (float)DSP_WINDOW_SIZE);
     float rmsIR = sqrtf(sum_sq_ir / (float)DSP_WINDOW_SIZE);
+    dsp->rms_red = rmsRed;
+    dsp->rms_ir = rmsIR;
     float mean_dc_red = sum_dc_red / (float)DSP_WINDOW_SIZE;
     float mean_dc_ir = sum_dc_ir / (float)DSP_WINDOW_SIZE;
     if (rmsIR > 0.0f && mean_dc_red > 0.0f && mean_dc_ir > 0.0f)
@@ -222,31 +225,31 @@ bool somniguard_dsp_calculate_spo2(somniguard_dsp_t *dsp, float *out_spo2, float
 
 /**
  * @brief HÃ m xá»­ lÃ½ toÃ n bá»™ Pipeline cho 1 máº«u PPG thÃ´ (Red & IR).
- * @param dsp Con trá» tá»›i struct somniguard_dsp_t
+ * @param dsp Con trá»  tá»›i struct somniguard_dsp_t
  * @param raw_red Máº«u thÃ´ Red tá»« MAX30102 ADC
  * @param raw_ir Máº«u thÃ´ IR tá»« MAX30102 ADC
- * @param timestamp_ms Thá»i Ä‘iá»ƒm láº¥y máº«u (ms)
- * @param result Con trá» nháº­n káº¿t quáº£ xá»­ lÃ½ (somniguard_dsp_result_t)
+ * @param timestamp_ms Thá» i Ä‘iá»ƒm láº¥y máº«u (ms)
+ * @param result Con trá»  nháº­n káº¿t quáº£ xá»­ lÃ½ (somniguard_dsp_result_t)
  * @return true náº¿u cÃ³ káº¿t quáº£ SpO2 má»›i táº¡i chu ká»³ Stride (0.5s), false náº¿u chá»‰ cáº­p nháº­t tá»«ng máº«u
  */
 bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint32_t raw_ir, uint32_t timestamp_ms, somniguard_dsp_result_t *result)
 {
     if (!dsp)
         return false;
-    // 1. KIá»‚M TRA Há»ž SÃNG HOáº¶C NHáº¤C NGÃ“N TAY
-    if (raw_ir < 40000 || raw_red < 40000)
-    {
-        somniguard_dsp_reset(dsp);
-        if (result)
-        {
-            memset(result, 0, sizeof(somniguard_dsp_result_t));
-            result->signal_valid = false;
-        }
-        return false;
-    }
+    // // 1. KIá»‚M TRA Há»ž SÃ NG HOáº¶C NHáº¤C NGÃ“N TAY
+    // if (raw_ir < 40000 || raw_red < 40000)
+    // {
+    //     somniguard_dsp_reset(dsp);
+    //     if (result)
+    //     {
+    //         memset(result, 0, sizeof(somniguard_dsp_result_t));
+    //         result->signal_valid = false;
+    //     }
+    //     return false;
+    // }
     float red_f = (float)raw_red;
     float ir_f = (float)raw_ir;
-    // 2. KHá»žI Táº O ÄÆ¯á»œNG Ná»€N KHI Vá»ªA Äáº¶T TAY
+    // 2. KHá»žI Táº O Ä Æ¯á»œNG Ná»€N KHI Vá»ªA Ä áº¶T TAY
     if (!dsp->is_finger_attached)
     {
         dsp->dc_track_red = red_f;
@@ -283,7 +286,7 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
     {
         dsp->is_buffer_full = true;
     }
-    // 6. CHá»ˆ TÃNH SPO2 KHI Äá»¦ DSP_STRIDE MáºªU (25 máº«u = 0.5s)
+    // 6. CHá»ˆ TÃ NH SPO2 KHI Ä á»¦ DSP_STRIDE MáºªU (25 máº«u = 0.5s)
     if (dsp->is_buffer_full && dsp->stride_counter >= DSP_STRIDE)
     {
         dsp->stride_counter = 0;
@@ -294,9 +297,9 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
             {
                 result->spo2 = current_spo2;
                 result->heart_rate = (float)dsp->smoothed_bpm;
-                result->ac_red = acRed_filtered;
+                result->ac_red = dsp->rms_red;
                 result->dc_red = dsp->dc_track_red;
-                result->ac_ir = acIR_filtered;
+                result->ac_ir = dsp->rms_ir;
                 result->dc_ir = dsp->dc_track_ir;
                 result->r_value = current_r;
                 result->signal_valid = (current_spo2 >= SPO2_MIN && current_spo2 <= SPO2_MAX);

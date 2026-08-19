@@ -51,23 +51,23 @@ extern "C"
 #define BPM_MIN 40.0f                   // Nhịp tim tối thiểu (BPM)
 #define BPM_MAX 200.0f                  // Nhịp tim tối đa (BPM)
 #define APNEA_DROP_THRESHOLD 4.0f       // Ngưỡng giảm SpO2 (%) cảnh báo Apnea
-#define AC_AMP_DROP_THRESHOLD_PCT 35.0f // % giảm biên độ PPG AC so với nền → kích phát Apnea heuristic
+#define AC_AMP_DROP_THRESHOLD_PCT 30.0f // % giảm biên độ PPG AC so với nền → kích phát Apnea heuristic
     /* Ngưỡng & Tham số Motor Rung Haptic (Nguồn: Cori 2018, van Maanen 2013, Benoist 2017) */
-#define HAPTIC_FREQ_HZ          175    // Tần số rung tối ưu 150–200Hz (thụ thể áp lực Meissner/Pacinian)
-#define HAPTIC_BURST_RATE_HZ    10     // Nhịp xung ngắt quãng 10Hz (tránh lờn/trơ thụ thể)
-#define HAPTIC_LEVEL_MILD_PCT   20     // ~0.2g → Cấp 1 nhẹ (SUB_INTERVENT_MILD_VIBRATE), không thức giấc
-#define HAPTIC_LEVEL_STRONG_PCT 80     // ~1.0g → Cấp 2 mạnh (SUB_INTERVENT_STRONG_VIBRATE), max an toàn N3
+#define HAPTIC_FREQ_HZ 175         // Tần số rung tối ưu 150–200Hz (thụ thể áp lực Meissner/Pacinian)
+#define HAPTIC_BURST_RATE_HZ 10    // Nhịp xung ngắt quãng 10Hz (tránh lờn/trơ thụ thể)
+#define HAPTIC_LEVEL_MILD_PCT 20   // ~0.2g → Cấp 1 nhẹ (SUB_INTERVENT_MILD_VIBRATE), không thức giấc
+#define HAPTIC_LEVEL_STRONG_PCT 80 // ~1.0g → Cấp 2 mạnh (SUB_INTERVENT_STRONG_VIBRATE), max an toàn N3
 
 /** @brief Convert % cường độ → giá trị PWM raw (0–255, PWM_TOP_VALUE = 255) */
-#define HAPTIC_PCT_TO_PWM(pct)          ((uint8_t)(((uint32_t)(pct) * 255U) / 100U))
+#define HAPTIC_PCT_TO_PWM(pct) ((uint8_t)(((uint32_t)(pct) * 255U) / 100U))
 
 /** @brief Giá trị PWM tính sẵn cho từng cấp can thiệp */
-#define HAPTIC_PWM_MILD     HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_MILD_PCT)    // = 51  (20% duty)
-#define HAPTIC_PWM_STRONG   HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_STRONG_PCT)  // = 204 (80% duty)
+#define HAPTIC_PWM_MILD HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_MILD_PCT)     // = 51  (20% duty)
+#define HAPTIC_PWM_STRONG HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_STRONG_PCT) // = 204 (80% duty)
 
 /** @brief Thời gian rung cho từng cấp can thiệp (ms) */
-#define HAPTIC_DURATION_MILD_MS     3000U  // 3 giây – kích thích nhẹ giai đoạn 1
-#define HAPTIC_DURATION_STRONG_MS   5000U  // 5 giây – đánh thức mạnh giai đoạn 2
+#define HAPTIC_DURATION_MILD_MS 7000U   // 7 giây – kích thích nhẹ giai đoạn 1
+#define HAPTIC_DURATION_STRONG_MS 9000U // 9 giây – đánh thức mạnh giai đoạn 2
 
     /* Các tư thế nằm người dùng (Posture Enum) */
     typedef enum
