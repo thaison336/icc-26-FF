@@ -82,6 +82,7 @@ extern "C"
         bool off_finger_entry_done;      // Đã clear FIFO/reset DSP khi vào OFF_FINGER_SUSPEND
         bool active_init_done;           // Đã config sensor khi vào SUB_ACTIVE_INIT
         bool sleep_buffering_entry_done; // Đã config sensor khi vào SUB_SLEEP_BUFFERING
+        bool inactive_entry_done;
 
         /* Biến theo dõi bất thường trong SUB_SLEEP_MONITORING */
         float spo2_baseline;        // SpO2 baseline khi bắt đầu MONITORING (để phát hiện drop tương đối)
@@ -144,6 +145,9 @@ extern "C"
      * @brief Hàm thực thi hiện thị trạng thái hiện tại của thiết bị bằng led
      */
     void somniguard_led_display(uint8_t stateDevice);
+    void somniguard_led_boot_sequence(void);
+    void somniguard_led_boot_success(void);
+    void somniguard_led_sleep_buffering_start(void);
     /**
      * @brief Hàm thực thi điều khiển motor rung haptic theo mức độ
      * @param nhận vào ampHaptic thể hiện cường độ rung

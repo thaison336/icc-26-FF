@@ -29,6 +29,13 @@ void actuators_set_leds(bool led1, bool led2);
 void actuators_set_rgb_led(bool red, bool green, bool blue);
 void actuators_set_haptic_pwm(uint8_t ampHaptic);
 
+/**
+ * @brief Các hiệu ứng hiển thị LED cho Booting & Setup các Mode FSM.
+ */
+void somniguard_led_boot_sequence(void);
+void somniguard_led_boot_success(void);
+void somniguard_led_sleep_buffering_start(void);
+
 #ifdef __cplusplus
 }
 #endif

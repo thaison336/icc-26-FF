@@ -101,6 +101,18 @@ __attribute__((weak)) void somniguard_led_display(uint8_t stateDevice)
     (void)stateDevice;
 }
 
+__attribute__((weak)) void somniguard_led_boot_sequence()
+{
+}
+
+__attribute__((weak)) void somniguard_led_boot_success()
+{
+}
+
+__attribute__((weak)) void somniguard_led_sleep_buffering_start()
+{
+}
+
 __attribute__((weak)) void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
 {
     (void)ampHaptic;
@@ -155,7 +167,7 @@ void somniguard_fsm_init(somniguard_fsm_t *fsm, SensorHub *hub)
     fsm->off_finger_entry_done = false;
     fsm->active_init_done = false;
     fsm->sleep_buffering_entry_done = false;
-
+    fsm->inactive_entry_done = false;
     // printf("\r\n[FSM INIT] SomniGuard FSM initialized. Start TopState: %s, ActiveSubState: %s\r\n",
     //        somniguard_top_state_str(fsm->top_state),
     //        somniguard_active_state_str(fsm->active_state));
@@ -291,7 +303,7 @@ somniguard_ai_event_t somniguard_ai_predict(const somniguard_buffer_t *buffer)
 
     // Truyền ma trận Tensor 60x28 trực tiếp tới Mô hình AI
     float prob = predict_window_confidence((const float *)frame.data);
-
+    prob = (float)1.0 - (float)prob; // Đảo xác suất để phù hợp với định nghĩa: 0 = bình thường, 1 = ngưng thở
     // Trường hợp mô hình AI chưa khởi tạo hoặc lỗi, dùng quy tắc an toàn dựa vào SpO2 dự phòng
     if (prob < 0.0f)
     {
@@ -415,21 +427,47 @@ void somniguard_fsm_task(void *pvParameters)
         switch (fsm->top_state)
         {
         case FSM_TOP_INACTIVE:
-        { // Trang thai khong hoat dong (tat nguon thiet bi)
-            // Thiet bi chi duoc bat lai khi nguoi dung nhan nut nguon (chuyá»ƒn top_state sang ACTIVE_MODE)
-            somniguard_led_display(FSM_TOP_INACTIVE);
-
-            fsm->vibrate_level = 0;
-            fsm->buzzer_alarm = false;
-            fsm->ble_sos_flag = false;
-            fsm->requested_imu_freq = 0;
-            fsm->requested_ppg_freq = 0;
-
-            vTaskDelay(pdMS_TO_TICKS(5000)); // hiá»‡n thá»‹ led biá»ƒu thá»‹ tráº¡ng thÃ¡i thiáº¿t bá»‹ chuáº©n bá»‹ táº¯t
-            // ham thuc hien BLE thong bao cho app tren dt bt thiet bi da tat
-            // ham thuc hien tat nguon
-            // somniguard_enter_em4_shutoff(fsm);
-            break;
+        {
+            // ==========================================================
+            // ENTRY ACTION: CHỈ CHẠY 1 LẦN DUY NHẤT KHI VỪA VÀO INACTIVE
+            // ==========================================================
+            if (!fsm->inactive_entry_done)
+            {
+                // 1. Tắt cơ cấu chấp hành (Rung, Còi)
+                fsm->vibrate_level = 0;
+                fsm->buzzer_alarm = false;
+                fsm->ble_sos_flag = false;
+                fsm->requested_imu_freq = 0;
+                fsm->requested_ppg_freq = 0;
+                somniguard_fsm_apply_actuators(fsm);
+                // 2. Nhấp nháy LED báo hiệu tắt máy trong 5 giây (ví dụ chớp 5 lần, mỗi lần 1s)
+                for (int i = 0; i < 5; i++)
+                {
+                    somniguard_led_display(FSM_TOP_INACTIVE); // Bật/Đổi trạng thái LED
+                    vTaskDelay(pdMS_TO_TICKS(500));
+                    somniguard_led_display(FSM_TOP_NORMAL_SLEEP); // Tắt LED
+                    vTaskDelay(pdMS_TO_TICKS(500));
+                }
+                // Đảm bảo kết thúc 5s là TẮT HẲN LED
+                somniguard_led_display(FSM_TOP_NORMAL_SLEEP);
+                // 3. Tắt nguồn các cảm biến (MAX30102 & IMU) 1 lần duy nhất
+                if (fsm->hub != nullptr)
+                {
+                    fsm->hub->MAX30102_driver().setPulseAmplitudeRed(0);
+                    fsm->hub->MAX30102_driver().setPulseAmplitudeIR(0);
+                    fsm->hub->MAX30102_driver().driver().shutDown();
+                    fsm->hub->imu_driver().setup(0, 1);
+                }
+                // 4. Gửi bản tin BLE báo đã chuyển sang INACTIVE 1 lần duy nhất
+                somniguard_ble_notify_event(
+                    SOMNIGUARD_BLE_EVT_TYPE_POWER_SYSTEM,
+                    SOMNIGUARD_BLE_EVT_CODE_FSM_STATE_CHG,
+                    (uint16_t)fsm->prev_top_state,
+                    (uint16_t)fsm->top_state);
+                fsm->inactive_entry_done = true; // Đánh dấu đã hoàn thành
+            }
+            // Sau khi đã xong Entry Action, task chỉ delay nhẹ chờ sự kiện bật nguồn
+            vTaskDelay(pdMS_TO_TICKS(500));
         }
         case FSM_TOP_OFF_FINGER_SUSPEND:
         {
@@ -529,13 +567,6 @@ void somniguard_fsm_task(void *pvParameters)
 
         case FSM_TOP_ACTIVE_MODE:
         {
-            /**
-             * Mode ACTIVE: Khi ngÆ°á»i dÃ¹ng cÃ²n thá»©c / hoáº¡t Ä‘á»™ng ban ngÃ y
-             * - Hiá»ƒn thá»‹ tráº¡ng thÃ¡i LED
-             * - Äo IMU 25Hz Ä‘á»ƒ biáº¿t ngÆ°á»i dÃ¹ng Ä‘Ã£ ngá»§ hay cÃ²n váº­n Ä‘á»™ng
-             * - Äo PPG 1Hz kiá»ƒm tra Ä‘eo thiáº¿t bá»‹
-             * - Äáº¡t Ä‘iá»u kiá»‡n khÃ´ng cá»­ Ä‘á»™ng 3 phÃºt -> chuyá»ƒn NORMAL SLEEP
-             */
 
             somniguard_led_display(FSM_TOP_ACTIVE_MODE);
 
@@ -632,20 +663,7 @@ void somniguard_fsm_task(void *pvParameters)
                 break;
             }
 
-            // Phá»¥c há»“i tá»‘t: SpO2 khÃ´i phá»¥c >= 95% vÃ  sub_state vá»  IDLE -> NORMAL_SLEEP
-            if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f && fsm->sub_state == SUB_INTERVENT_IDLE)
-            {
-                uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-                fsm->prev_top_state = fsm->top_state;
-                fsm->top_state = FSM_TOP_NORMAL_SLEEP;
-                fsm->top_state_entry_ms = now_ms;
 
-                // Reset sub-state vá»  BUFFERING Ä‘á»ƒ tÃ­ch lÅ©y láº¡i baseline SpO2 sau can thiá»‡p
-                fsm->normal_state = SUB_SLEEP_BUFFERING;
-                fsm->sleep_buffering_entry_done = false;
-                fsm->anomaly_detect_ms = 0;
-                fsm->anomaly_sustained = false;
-            }
             break;
         }
         }
@@ -685,6 +703,21 @@ void somniguard_deep_analysis_task(void *pvParameters)
                     fsm->last_ai_event = somniguard_ai_predict(&fsm->buffer_pro);
                 }
 
+            // Phá»¥c há»“i tá»‘t: SpO2 khÃ´i phá»¥c >= 95% vÃ  last_ai_event == AI_EVENT_NORMAL -> NORMAL_SLEEP
+            if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f && fsm->last_ai_event == AI_EVENT_NORMAL)
+            {
+                uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+                fsm->prev_top_state = fsm->top_state;
+                fsm->top_state = FSM_TOP_NORMAL_SLEEP;
+                fsm->top_state_entry_ms = now_ms;
+
+                // Reset sub-state vá»  BUFFERING Ä‘á»ƒ tÃ­ch lÅ©y láº¡i baseline SpO2 sau can thiá»‡p
+                fsm->normal_state = SUB_SLEEP_BUFFERING;
+                fsm->sleep_buffering_entry_done = false;
+                fsm->anomaly_detect_ms = 0;
+                fsm->anomaly_sustained = false;
+            }
+           
                 // 2. Quyết định cấp can thiệp khởi phát ban đầu dựa trên chẩn đoán AI & SpO2
                 if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL || fsm->dsp_res.spo2 < 85.0f)
                 {
@@ -694,10 +727,12 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
                 }
-                else // AI_EVENT_APNEA_MILD, AI_EVENT_HYPOPNIA, hoặc SpO2 < 93.0%
+                else
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_MILD_VIBRATE);
                 }
+               
+                
                 break;
 
             case SUB_INTERVENT_MILD_VIBRATE:
@@ -801,6 +836,7 @@ void somniguard_active_mode_task(void *pvParameters)
             {
             case SUB_ACTIVE_INIT:
                 // Entry action: Chá»‰ config sensor 1 láº§n khi má»›i vÃ o state
+
                 if (!fsm->active_init_done)
                 {
                     // Táº¯t cÃ¡c thiáº¿t bá»‹ cáº£nh bÃ¡o
@@ -813,7 +849,9 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
                     fsm->hub->MAX30102_driver().driver().wakeUp();
                     //   fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    somniguard_led_display(FSM_TOP_ACTIVE_MODE);
+                    fsm->hub->agcAmplitudeLed();
                     fsm->active_init_done = true;
                 }
                 // AGC Ä‘Ã£ cháº¡y trong app_init(), khÃ´ng gá»i á»Ÿ Ä‘Ã¢y ná»¯a
@@ -835,7 +873,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_SLEEP_HZ; // 50Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_SLEEP_HZ; // 50Hz
                                                                           //  fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_PRE_SLEEP);
                 }
                 break;
@@ -850,7 +888,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ; // 25Hz
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
                                                                            // fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_WAKEFUL);
                 }
                 // Náº¿u náº±m yÃªn Ä‘á»§ 3 phÃºt (FSM_SLEEP_ENTER_TIME_MS) vÃ  tÃ­n hiá»‡u tá»‘t -> Chuyá»ƒn NORMAL_SLEEP
@@ -870,7 +908,7 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_ACTIVE_HZ;
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ;
                     //  fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    // fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_WAKEFUL);
                 }
                 break;
@@ -914,9 +952,12 @@ void somniguard_normal_sleep_task(void *pvParameters)
             // chuyá»ƒn sang MONITORING. KhÃ´ng can thiá»‡p vÃ o luá»“ng data.
             // =================================================================
             case SUB_SLEEP_BUFFERING:
-                // Entry action: Config sensor 1 láº§n
+                // Entry action: Config sensor 1 lần
                 if (!fsm->sleep_buffering_entry_done && fsm->prev_top_state != FSM_TOP_DEEP_ANALYSIS)
                 {
+                    // Hiệu ứng LED nhấp nháy báo bắt đầu vào chế độ đo ngủ ban đêm rồi tắt hẳn
+                    somniguard_led_sleep_buffering_start();
+
                     fsm->vibrate_level = 0;
                     fsm->buzzer_alarm = false;
                     fsm->ble_sos_flag = false;
@@ -925,10 +966,12 @@ void somniguard_normal_sleep_task(void *pvParameters)
                     fsm->requested_imu_freq = IMU_SAMPLING_RATE_SLEEP_HZ;
 
                     //   fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    //    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     fsm->sleep_buffering_entry_done = true;
-
+                    // agc current led before sleep
+                
                     printf("[SLEEP] Buffering... waiting for %d samples.\r\n", TENSOR_MAX_ROWS);
+                    vTaskDelay(pdMS_TO_TICKS(2000));
                 }
 
                 // Chá» buffer Ä‘áº§y Ä‘á»§ 40s (1000 máº«u) má»›i chuyá»ƒn sang MONITORING

@@ -79,7 +79,7 @@ void actuators_set_haptic_pwm(uint8_t ampHaptic)
  * GHI ĐÈ (OVERRIDE) CÁC HÀM WEAK CỦA FSM (somniguard_fsm.cpp)
  * ========================================================================= */
 
-// Override hàm hiển thị LED theo trạng thái FSM (Sử dụng 2 LED: PC08 & PC09)
+// Override hàm hiển thị LED theo trạng thái FSM (Chuẩn UX Sleep Wearable: Dark-by-Default)
 extern "C" void somniguard_led_display(uint8_t stateDevice)
 {
     if (!s_actuators_initialized)
@@ -88,31 +88,38 @@ extern "C" void somniguard_led_display(uint8_t stateDevice)
     switch (stateDevice)
     {
     case FSM_TOP_INACTIVE:
-        // Tắt cả 2 LED khi Inactive
+    { // Trạng thái thức / Đeo ngón chuẩn bị ngủ: Bật LED1 (PC08) chỉ báo sẵn sàng
+        static uint8_t s_boot_blink_cnt = 0;
+        s_boot_blink_cnt++;
+        bool is_led_on = (s_boot_blink_cnt % 2 == 1);
+        actuators_set_leds(is_led_on, is_led_on);
+        break;
+    }
+    case FSM_TOP_ACTIVE_MODE:
+    {
+        static uint8_t s_boot_blink_cnt = 0;
+        s_boot_blink_cnt++;
+        bool is_led_on = (s_boot_blink_cnt % 2 == 1);
+        actuators_set_leds(is_led_on, false);
+        break;
+    }
+    case FSM_TOP_NORMAL_SLEEP:
+        // Chế độ theo dõi giấc ngủ ban đêm: TẮT HOÀN TOÀN LED để tránh gây chói và gián đoạn giấc ngủ
+        actuators_set_leds(false, false);
+        break;
+
+    case FSM_TOP_DEEP_ANALYSIS:
+        // Chế độ phân tích sâu / Can thiệp ngưng thở: TẮT LED (cảnh báo/kích thích chỉ dùng Haptic Motor rung & BLE)
         actuators_set_leds(false, false);
         break;
 
     case FSM_TOP_OFF_FINGER_SUSPEND:
-        // Cảnh báo tuột ngón: Bật LED2 (PC09)
-        actuators_set_leds(false, true);
-        break;
-
-    case FSM_TOP_ACTIVE_MODE:
-        // Trạng thái thức / Active: Bật LED1 (PC08)
-        actuators_set_leds(true, false);
-        break;
-
-    case FSM_TOP_NORMAL_SLEEP:
-        // Trạng thái ngủ đêm: Bật LED2 (PC09)
-        actuators_set_leds(false, true);
-        break;
-
-    case FSM_TOP_DEEP_ANALYSIS:
-        // Trạng thái can thiệp / Báo động ngưng thở: Bật CẢ 2 LED (PC08 + PC09)
-        actuators_set_leds(true, true);
+        // Tuột ngón tay lúc ngủ: Tắt toàn bộ LED để không chớp sáng làm phiền người dùng trong phòng tối
+        actuators_set_leds(false, false);
         break;
 
     default:
+        // Tắt toàn bộ LED khi tắt nguồn / không hoạt động
         actuators_set_leds(false, false);
         break;
     }
@@ -154,3 +161,51 @@ extern "C" void somniguard_BLE_control()
         0  // HR param
     );
 }
+
+// 1. Hiệu ứng khi khởi động hệ thống trong app_init() (Chạy đuổi LED1 -> LED2)
+extern "C" void somniguard_led_boot_sequence(void)
+{
+    if (!s_actuators_initialized)
+        actuators_bsp_init();
+
+    for (int i = 0; i < 2; i++)
+    {
+        actuators_set_leds(true, false);  // LED1 ON
+        vTaskDelay(pdMS_TO_TICKS(120));
+        actuators_set_leds(false, true);  // LED2 ON
+        vTaskDelay(pdMS_TO_TICKS(120));
+    }
+    actuators_set_leds(false, false);
+}
+
+// 2. Báo hiệu khởi tạo hệ thống & Task thành công (Chớp 2 LED đồng thời 2 lần)
+extern "C" void somniguard_led_boot_success(void)
+{
+    if (!s_actuators_initialized)
+        actuators_bsp_init();
+
+    for (int i = 0; i < 2; i++)
+    {
+        actuators_set_leds(true, true);
+        vTaskDelay(pdMS_TO_TICKS(150));
+        actuators_set_leds(false, false);
+        vTaskDelay(pdMS_TO_TICKS(150));
+    }
+}
+
+// 3. Báo hiệu bắt đầu vào chế độ theo dõi giấc ngủ ban đêm (Nháy dịu LED2 3 lần rồi TẮT HẲN)
+extern "C" void somniguard_led_sleep_buffering_start(void)
+{
+    if (!s_actuators_initialized)
+        actuators_bsp_init();
+
+    for (int i = 0; i < 3; i++)
+    {
+        actuators_set_leds(false, true); // Bật LED2 (PC09)
+        vTaskDelay(pdMS_TO_TICKS(200));
+        actuators_set_leds(false, false); // Tắt
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+    actuators_set_leds(false, false); // Đảm bảo tắt hẳn (Dark-by-Default)
+}
+

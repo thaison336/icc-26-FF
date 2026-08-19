@@ -29,6 +29,8 @@
 #include "task.h"
 #include "MPU6050_driver/MPU6050.h"
 #include "em_gpio.h"
+#include "em_cmu.h"
+#include "em_timer.h"
 #include "em_i2c.h"
 #include "MAX30102_manager.h"
 #include "sensor_hub/sensor_hub.h"
@@ -37,6 +39,7 @@
 #include "somniguard_layer/somniguard_buffer.h"
 #include "somniguard_layer/somniguard_fsm.h"
 #include "other_driver/ble_notification_manager.h"
+#include "other_driver/actuators_bsp.h"
 #include <stdlib.h>
 #include <string.h>
 #include "model/model.h"
@@ -138,7 +141,15 @@ void DataProcessingTask(void *pvParameters)
                 &fsm->motion_res);
 
             // 4. Khi có stride DSP mới (mỗi 1s/0.5s), đẩy đầy đủ 4 kênh vào Tensor Buffer
-            if (has_new_stride)
+            if (has_new_stride && (fsm->top_state == FSM_TOP_NORMAL_SLEEP || fsm->top_state == FSM_TOP_DEEP_ANALYSIS))
+            {
+                somniguard_buffer_push_50hz(
+                    &fsm->buffer_pro,
+                    fsm->dsp_res.spo2,
+                    fsm->dsp_res.heart_rate,
+                    ac_ir_buf,
+                    fsm->motion_res.motion_energy);
+            }
             {
                 float push_spo2 = fsm->dsp_res.spo2;
                 float push_bpm = fsm->dsp_res.heart_rate;
@@ -414,9 +425,113 @@ void TestMPU6050Task(void *pvParameters)
     }
 }
 
+/* =========================================================================
+ * TASK TEST HAPTIC MOTOR (PA07)
+ * ========================================================================= */
+static void TestHapticMotorTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    // 1. Cấp Clock cho GPIO và TIMER0
+    CMU_ClockEnable(cmuClock_GPIO, true);
+    CMU_ClockEnable(cmuClock_TIMER0, true);
+
+    // 2. Cấu hình chân PA07 làm Output Push-Pull
+    GPIO_PinModeSet(gpioPortA, 7, gpioModePushPull, 0);
+
+    // 3. Khởi tạo TIMER0 đếm lên với Prescaler 256
+    TIMER_Init_TypeDef timerInit = TIMER_INIT_DEFAULT;
+    timerInit.prescale = timerPrescale256;
+    timerInit.mode = timerModeUp;
+    TIMER_Init(TIMER0, &timerInit);
+
+    // 4. Tính toán giá trị TOP cho tần số PWM 175Hz (Tần số tối ưu cho Motor rung)
+    uint32_t timer_clk_freq = CMU_ClockFreqGet(cmuClock_TIMER0);
+    uint32_t timer_tick_freq = timer_clk_freq / 256;
+    uint32_t pwm_top = (timer_tick_freq / 175) - 1;
+    TIMER_TopSet(TIMER0, pwm_top);
+
+    // 5. Cấu hình Channel 0 của TIMER0 sang chế độ PWM
+    TIMER_InitCC_TypeDef ccInit = TIMER_INITCC_DEFAULT;
+    ccInit.mode = timerCCModePWM;
+    TIMER_InitCC(TIMER0, 0, &ccInit);
+
+    // 6. Route tín hiệu PWM CC0 ra chân PA07
+    GPIO->TIMERROUTE[0].ROUTEEN = GPIO_TIMER_ROUTEEN_CC0PEN;
+    GPIO->TIMERROUTE[0].CC0ROUTE = (gpioPortA << _GPIO_TIMER_CC0ROUTE_PORT_SHIFT) | (7 << _GPIO_TIMER_CC0ROUTE_PIN_SHIFT);
+
+    // Bật TIMER0
+    TIMER_CompareSet(TIMER0, 0, 0);
+    TIMER_Enable(TIMER0, true);
+
+    printf("\r\n=======================================================\r\n");
+    printf(">>> [HAPTIC MOTOR TEST] DANG CHAY TEST PA07 (175Hz) <<<\r\n");
+    printf("=======================================================\r\n");
+
+    auto set_duty = [&](uint8_t duty_pct)
+    {
+        if (duty_pct > 100)
+            duty_pct = 100;
+        uint32_t compare = (pwm_top * duty_pct) / 100;
+        TIMER_CompareBufSet(TIMER0, 0, compare);
+    };
+
+    while (1)
+    {
+        // Giai đoạn 1: Rung nhẹ 20% Duty trong 2 giây (Cấp 1 - Mild)
+        printf("[HAPTIC TEST] 1. Rung nhe (20%% Duty - Cấp Mild) -> 2 giay\r\n");
+        set_duty(20);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        set_duty(0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        // Giai đoạn 2: Rung trung bình 50% Duty trong 2 giây
+        printf("[HAPTIC TEST] 2. Rung vua (50%% Duty) -> 2 giay\r\n");
+        set_duty(50);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        set_duty(0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        // Giai đoạn 3: Rung mạnh 80% Duty trong 2 giây (Cấp 2 - Strong)
+        printf("[HAPTIC TEST] 3. Rung manh (80%% Duty - Cấp Strong) -> 2 giay\r\n");
+        set_duty(80);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        set_duty(0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        // Giai đoạn 4: Ramp-up tăng dần công suất từ 0% -> 100%
+        printf("[HAPTIC TEST] 4. Ramp-up tang dan 0%% -> 100%%...\r\n");
+        for (int pct = 0; pct <= 100; pct += 10)
+        {
+            set_duty(pct);
+            vTaskDelay(pdMS_TO_TICKS(150));
+        }
+        set_duty(0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        // Giai đoạn 5: Rung nhịp ngắt quãng Burst 10Hz (50ms ON / 50ms OFF) trong 3 giây
+        printf("[HAPTIC TEST] 5. Rung nhip Burst 10Hz (80%% Duty) -> 3 giay\r\n");
+        for (int i = 0; i < 30; i++) // 30 chu kỳ x 100ms = 3000ms
+        {
+            set_duty(80);
+            vTaskDelay(pdMS_TO_TICKS(50));
+            set_duty(0);
+            vTaskDelay(pdMS_TO_TICKS(50));
+        }
+        set_duty(0);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        printf("[HAPTIC TEST] === Xong 1 chu ky test. Nghi 4s truoc khi lap lai ===\r\n\r\n");
+        vTaskDelay(pdMS_TO_TICKS(4000));
+    }
+}
+
 void app_init(void)
 {
     printf("========== APP INIT FSM RUN START ==========\r\n");
+
+    // Hiệu ứng LED chạy đuổi báo hiệu hệ thống bắt đầu boot
+    somniguard_led_boot_sequence();
 
     // Khởi tạo BLE Notification Manager
     somniguard_ble_manager_init();
@@ -509,29 +624,17 @@ void app_init(void)
         tskIDLE_PRIORITY + 1,
         NULL);
 
-    // // 8. Task Serial AI Test
-    // xTaskCreate(
-    //     main_app_task,
-    //     "SerialTask",
-    //     2048,
-    //     NULL,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
-    // xTaskCreate(
-    //     LedBlinkyTask,
-    //     "LedBlinky",
-    //     512,
-    //     NULL,
-    //     tskIDLE_PRIORITY + 1,
-    //     NULL);
+    // 8. Task Test Haptic Motor (PA07) - Chạy trực tiếp
+    xTaskCreate(
+        TestHapticMotorTask,
+        "TestHaptic",
+        512,
+        NULL,
+        tskIDLE_PRIORITY + 2,
+        NULL);
 
-    // xTaskCreate(
-    //     TestMPU6050Task,
-    //     "TestMPU",
-    //     1024,
-    //     NULL,
-    //     tskIDLE_PRIORITY + 2,
-    //     NULL);
+    // Báo hiệu khởi tạo hệ thống & Tasks thành công (Chớp 2 LED)
+    somniguard_led_boot_success();
 
     printf("========== APP INIT FSM RUN DONE ==========\r\n");
 }
