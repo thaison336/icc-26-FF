@@ -174,60 +174,29 @@ bool somniguard_ble_notify_telemetry(const somniguard_ble_telemetry_pkt_t *telem
         return false;
     }
 
-    // Format string payload for Android App UI consumption: "SpO2:96.5% BPM:75" or "NO FINGER"
-    char telem_str[32];
-    bool is_finger_on = (telemetry->posture_flags & (1 << 3)) != 0;
-    if (is_finger_on)
-    {
-        snprintf(telem_str, sizeof(telem_str), "SpO2:%.1f%% BPM:%.0f",
-                 (float)telemetry->spo2_x100 / 100.0f,
-                 (float)telemetry->hr_x10 / 10.0f);
-    }
-    else
-    {
-        snprintf(telem_str, sizeof(telem_str), "NO FINGER");
-    }
-
-  //  printf("[BLE TELEM #%u] Dispatched '%s' over BLE RF (conn=0x%02X)\r\n",
-        //   telemetry->seq_num, telem_str, active_connection_handle);
-
 #if defined(gattdb_wearable_data)
-    // Gá»­i chuá»—i telemetry lÃªn Characteristic 0000FFE1-0000-1000-8000-00805F9B34FB (Android App Ä‘ang láº¯ng nghe)
-    if (active_connection_handle != 0xFF)
+    // Gửi gói tin nhị phân Telemetry 12 bytes chuẩn (chứa seq_num, spo2, hr, motion, posture_flags, top_fsm_state, sub_fsm_state, battery_level)
+    // lên Characteristic Wearable Data (0000FFE1-0000-1000-8000-00805F9B34FB) để Mobile App phân tích và hiển thị trực tiếp TOP FSM State
+    if (active_connection_handle != 0xFF && app_is_subscribed)
     {
-        sl_bt_gatt_server_send_notification(
+        sl_status_t sc = sl_bt_gatt_server_send_notification(
             active_connection_handle,
             gattdb_wearable_data,
-            strlen(telem_str),
-            (const uint8_t *)telem_str);
+            sizeof(somniguard_ble_telemetry_pkt_t),
+            (const uint8_t *)telemetry);
+        return (sc == SL_STATUS_OK);
     }
     else
     {
-        sl_bt_gatt_server_notify_all(
+        sl_status_t sc = sl_bt_gatt_server_notify_all(
             gattdb_wearable_data,
-            strlen(telem_str),
-            (const uint8_t *)telem_str);
-    }
-#endif
-
-#if defined(gattdb_gattdb_health_telemetry)
-    if (active_connection_handle != 0xFF)
-    {
-        sl_bt_gatt_server_send_notification(
-            active_connection_handle,
-            gattdb_gattdb_health_telemetry,
             sizeof(somniguard_ble_telemetry_pkt_t),
             (const uint8_t *)telemetry);
+        return (sc == SL_STATUS_OK);
     }
-    else
-    {
-        sl_bt_gatt_server_notify_all(
-            gattdb_gattdb_health_telemetry,
-            sizeof(somniguard_ble_telemetry_pkt_t),
-            (const uint8_t *)telemetry);
-    }
-#endif
+#else
     return true;
+#endif
 }
 
 void somniguard_ble_handle_downlink_cmd(const uint8_t *data, uint16_t len, void *fsm_ptr)

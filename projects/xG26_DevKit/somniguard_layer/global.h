@@ -51,7 +51,7 @@ extern "C"
 #define BPM_MIN 40.0f                   // Nhịp tim tối thiểu (BPM)
 #define BPM_MAX 200.0f                  // Nhịp tim tối đa (BPM)
 #define APNEA_DROP_THRESHOLD 4.0f       // Ngưỡng giảm SpO2 (%) cảnh báo Apnea
-#define AC_AMP_DROP_THRESHOLD_PCT 40.0f // % giảm biên độ PPG AC so với nền → kích phát Apnea heuristic
+#define AC_AMP_DROP_THRESHOLD_PCT 45.0f // % giảm biên độ PPG AC so với nền → kích phát Apnea heuristic
     /* Ngưỡng & Tham số Motor Rung Haptic (Nguồn: Cori 2018, van Maanen 2013, Benoist 2017) */
 #define HAPTIC_FREQ_HZ 175           // Tần số rung tối ưu 150–200Hz (thụ thể áp lực Meissner/Pacinian)
 #define HAPTIC_BURST_RATE_HZ 10      // Nhịp xung ngắt quãng 10Hz (tránh lờn/trơ thụ thể)

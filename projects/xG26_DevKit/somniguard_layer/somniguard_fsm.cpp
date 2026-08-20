@@ -194,12 +194,12 @@ void somniguard_fsm_set_top_state(somniguard_fsm_t *fsm, somniguard_top_fsm_stat
     fsm->top_state = new_state;
     fsm->top_state_entry_ms = now_ms;
 
-    // Phát gói tin BLE thông báo chuyển trạng thái hệ thống
-    somniguard_ble_notify_event(
-        SOMNIGUARD_BLE_EVT_TYPE_POWER_SYSTEM,
-        SOMNIGUARD_BLE_EVT_CODE_FSM_STATE_CHG,
-        (uint16_t)fsm->prev_top_state,
-        (uint16_t)new_state);
+    // // Phát gói tin BLE thông báo chuyển trạng thái hệ thống
+    // somniguard_ble_notify_event(
+    //     SOMNIGUARD_BLE_EVT_TYPE_POWER_SYSTEM,
+    //     SOMNIGUARD_BLE_EVT_CODE_FSM_STATE_CHG,
+    //     (uint16_t)fsm->prev_top_state,
+    //     (uint16_t)new_state);
 }
 
 void somniguard_fsm_set_sub_state(somniguard_fsm_t *fsm, somniguard_sub_fsm_state_t new_sub_state)
