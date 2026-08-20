@@ -1,7 +1,7 @@
 #include "model.h"
 #include <stdio.h>
 #include <math.h>
-#include "sl_ml_model_somni_guard_v2.h"
+#include "sl_ml_model_somni_guard.h"
 #include "ppg_compress_stat7.h"
 
 #define WINDOW_FRAMES PPG_COMPRESS_STAT7_WINDOW_FRAMES
@@ -42,15 +42,15 @@ static bool buffer_full = false;
 
 void init_model()
 {
-    sl_status_t status = sl_ml_model_init(&sl_ml_somni_guard_v2_model_handle);
+    sl_status_t status = sl_ml_model_init(&sl_ml_somni_guard_model_handle);
     if (status != SL_STATUS_OK)
     {
         printf("Model init failed\r\n");
         return;
     }
 
-    model_input = sl_ml_somni_guard_v2_model_handle.input_tensor(0);
-    model_output = sl_ml_somni_guard_v2_model_handle.output_tensor(0);
+    model_input = sl_ml_somni_guard_model_handle.input_tensor(0);
+    model_output = sl_ml_somni_guard_model_handle.output_tensor(0);
 
     printf("Model Init OK. Input bytes: %lu, type: %d\r\n", (unsigned long)model_input->bytes, model_input->type);
 
@@ -129,7 +129,7 @@ void process_new_frame(const float *frame)
     printf("INF_PRE_INVOKE\r\n");
     fflush(stdout);
 
-    sl_status_t invoke_status = sl_ml_model_run(&sl_ml_somni_guard_v2_model_handle);
+    sl_status_t invoke_status = sl_ml_model_run(&sl_ml_somni_guard_model_handle);
 
     printf("INF_POST_INVOKE\r\n");
     fflush(stdout);
@@ -153,11 +153,16 @@ void process_new_frame(const float *frame)
     }
 
     int pred = 0;
-    if (prob < 0.2783660571179704f) {
+    if (prob < 0.2783660571179704f)
+    {
         pred = 0; // Normal
-    } else if (prob < 0.862608100601177f) {
+    }
+    else if (prob < 0.862608100601177f)
+    {
         pred = 1; // Abnormal
-    } else {
+    }
+    else
+    {
         pred = 2; // Emergency
     }
 
@@ -174,19 +179,19 @@ void reset_buffer()
     fflush(stdout);
 }
 
-float predict_window_confidence(const float *window_60x28)
+int8_t predict_window_confidence(const float *window_60x28)
 {
     if (model_input == nullptr || model_output == nullptr || window_60x28 == nullptr)
     {
         printf("[AI ERR] Model or input tensor not initialized\r\n");
-        return -1.0f;
+        return -1;
     }
 
     if (model_input->bytes != WINDOW_FRAMES * COMPRESSED_CHANNELS)
     {
         printf("[AI ERR] Bad input tensor size: %lu (expected %d)\r\n",
                (unsigned long)model_input->bytes, WINDOW_FRAMES * COMPRESSED_CHANNELS);
-        return -1.0f;
+        return -1;
     }
 
     // 1. Compress 60x28 raw window into 60x10 feature window
@@ -218,12 +223,12 @@ float predict_window_confidence(const float *window_60x28)
     }
 
     // 3. Run TFLite Micro Model Inference
-    sl_status_t invoke_status = sl_ml_model_run(&sl_ml_somni_guard_v2_model_handle);
+    sl_status_t invoke_status = sl_ml_model_run(&sl_ml_somni_guard_model_handle);
     if (invoke_status != SL_STATUS_OK)
     {
         printf("[AI ERR] sl_ml_model_run failed with status 0x%04X\r\n", (unsigned int)invoke_status);
         fflush(stdout);
-        return -1.0f;
+        return -1;
     }
 
     // 4. Extract probability output
@@ -238,16 +243,21 @@ float predict_window_confidence(const float *window_60x28)
         prob = (output_q - model_output->params.zero_point) * model_output->params.scale;
     }
 
-    int pred = 0;
-    if (prob < 0.2783660571179704f) {
+    uint8_t pred = 0;
+    if (prob < 0.2783660571179704f)
+    {
         pred = 0; // Normal
-    } else if (prob < 0.862608100601177f) {
+    }
+    else if (prob < 0.862608100601177f)
+    {
         pred = 1; // Abnormal
-    } else {
+    }
+    else
+    {
         pred = 2; // Emergency
     }
     printf("[AI INF] Inference OK -> Pred: %d | Confidence: %.4f\r\n", pred, prob);
     fflush(stdout);
 
-    return prob;
+    return pred;
 }

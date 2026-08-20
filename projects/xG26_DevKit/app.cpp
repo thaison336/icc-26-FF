@@ -110,8 +110,6 @@ void DataProcessingTask(void *pvParameters)
         while (fsm->hub->getsensordata(&data))
         {
             uint32_t timestamp_ms = pdTICKS_TO_MS(xTaskGetTickCount());
-            ac_ir_buf[idx] = (float)data.ppg_ir;
-            idx = (idx + 1) % FEATURE_RATE_IR_AC_HZ;
 
             // 2. Chạy thuật toán DSP tính SpO2 & BPM
             bool has_new_stride = somniguard_dsp_process_sample(
@@ -120,6 +118,10 @@ void DataProcessingTask(void *pvParameters)
                 data.ppg_ir,
                 timestamp_ms,
                 &fsm->dsp_res);
+            float dc_ir = fsm->dsp_pro.dc_track_ir;
+            float ac_ir_norm = (dc_ir > 0.0f) ? (fsm->dsp_pro.lpf_ir_prev / dc_ir) : 0.0f;
+            ac_ir_buf[idx] = ac_ir_norm;
+            idx = (idx + 1) % FEATURE_RATE_IR_AC_HZ;
 
             somniguard_raw_imu_t rawIMU;
             rawIMU.ax = data.ax;
@@ -246,7 +248,7 @@ void FsmLoggerTask(void *pvParameters)
         int bpm_i = (int)fsm->dsp_res.heart_rate;
         int motion_i = (int)(fsm->motion_res.motion_energy * 1000.0f); // mg
 
-        printf("[FSM LOG #%lu] TopState: %-18s | SubState: %-18s | Finger: %-3s | SpO2: %2d.%01d%% | BPM: %3d | Motion: %4d mg (%s) | Quiet: %lu ms | Vib: %u | Buz: %s | BLE: %s | Buffer: %u/%d\r\n",
+        printf("[FSM LOG #%lu] TopState: %-18s | SubState: %-18s | Finger: %-3s | SpO2: %2d.%01d%% | BPM: %3d | Motion: %4d mg (%s) | Quiet: %lu ms | Vib: %u |Valid_res: %u| Buz: %s | BLE: %s | Buffer: %u/%d| \r\n",
                (unsigned long)log_counter,
                top_str,
                sub_str,
@@ -257,6 +259,7 @@ void FsmLoggerTask(void *pvParameters)
                fsm->motion_res.is_moving ? "MOVE" : "REST",
                (unsigned long)fsm->quiet_duration_ms,
                fsm->vibrate_level,
+               fsm->dsp_res.signal_valid ? 1 : 0,
                fsm->buzzer_alarm ? "ON" : "OFF",
                somniguard_ble_is_subscribed() ? "ON" : "OFF",
                fsm->buffer_pro.count,

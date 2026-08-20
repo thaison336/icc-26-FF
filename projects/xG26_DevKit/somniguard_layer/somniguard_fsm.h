@@ -27,13 +27,13 @@ extern "C"
 #endif
 
 /* Hằng số cấu hình thời gian chuyển trạng thái FSM (ms) */
-#define FSM_INACTIVE_TIMEOUT_MS (1800000UL) // 30 phút không đeo -> INACTIVE
-#define FSM_SLEEP_ENTER_TIME_MS (120000UL)  // 3 phút không cựa tay -> NORMAL_SLEEP
-#define FSM_WAKE_MOTION_TIME_MS (300000UL)  // 300s cựa tay liên tục -> ACTIVE_MODE
-#define FSM_MILD_VIB_DURATION_MS (5000UL)   // 5 giây rung nhẹ
-#define FSM_STRONG_VIB_DURATION_MS (5000UL) // 5 giây rung mạnh
-#define FSM_EVALUATE_TIMEOUT_MS (10000UL)   // 10 giây đánh giá phục hồi sau can thiệp
-
+#define FSM_INACTIVE_TIMEOUT_MS (1800000UL)          // 30 phút không đeo -> INACTIVE
+#define FSM_SLEEP_ENTER_TIME_MS (120000UL)           // 3 phút không cựa tay -> NORMAL_SLEEP
+#define FSM_WAKE_MOTION_TIME_MS (300000UL)           // 300s cựa tay liên tục -> ACTIVE_MODE
+#define FSM_MILD_VIB_DURATION_MS (5000UL)            // 5 giây rung nhẹ
+#define FSM_STRONG_VIB_DURATION_MS (5000UL)          // 5 giây rung mạnh
+#define FSM_EVALUATE_TIMEOUT_MS (10000UL)            // 10 giây đánh giá phục hồi sau can thiệp
+#define FSM_EVALUATE_INTTERVAL_ADVANCED_MS (15000UL) // 15 giây đánh giá phục hồi sau can thiệp (nâng cấp rung mạnh + BLE SOS)
 /* Ngưỡng phát hiện bất thường trong NORMAL_SLEEP */
 #define FSM_SPO2_WARN_THRESHOLD 93.0f     // Ngưỡng 1: SpO2 < 93% -> DEEP_ANALYSIS ngay
 #define FSM_SPO2_CRITICAL_THRESHOLD 90.0f // Ngưỡng 2: SpO2 < 90% -> DEEP_ANALYSIS ngay

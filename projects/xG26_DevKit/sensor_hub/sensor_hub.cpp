@@ -155,8 +155,8 @@ void SensorHub::agcAmplitudeLed()
     const uint32_t HIGH_SATURATION = (uint32_t)(0.90f * full_scale_adc);
 
     // Khá»Ÿi táº¡o dÃ²ng LED ban Ä‘áº§u qua manager queue (interrupt task sáº½ ghi xuá»‘ng hardware)
-    uint8_t current_red_amp = 60;
-    uint8_t current_ir_amp = 60;
+    uint8_t current_red_amp = 110;
+    uint8_t current_ir_amp = 110;
     m_max30102.setPulseAmplitudeRed(current_red_amp);
     m_max30102.setPulseAmplitudeIR(current_ir_amp);
     // Xáº£ FIFO qua manager (interrupt task xá»­ lÃ½) Ä‘á»ƒ báº¯t Ä‘áº§u tá»« tráº¡ng thÃ¡i sáº¡ch
