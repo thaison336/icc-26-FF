@@ -27,7 +27,7 @@ extern "C"
         uint16_t count;                         // Số lượng mẫu hiện có trong bộ đệm
         uint16_t window_size;                   // Kích thước cửa sổ trượt (25 cho 25Hz, 50 cho 50Hz)
         uint16_t sample_rate_hz;                // Tần số lấy mẫu hiện tại (25Hz hoặc 50Hz)
-        float motion_threshold;                 // Ngưỡng phát hiện cựa tay (PARAM_IMU_MOTION_THRESHOLD = 0.25g)
+        float motion_threshold;                 // Ngưỡng phát hiện cựa tay (PARAM_IMU_MOTION_THRESHOLD = 0.018g / 18 mg)
 
         /* Biến tích lũy cho giải thuật O(1) siêu tiết kiệm năng lượng */
         float sum_a;    // Tổng trượt các mẫu a_mag

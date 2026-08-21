@@ -1943,13 +1943,15 @@ void MPU6050_Base::getMotion9(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx
  * @see MPU6050_RA_ACCEL_XOUT_H
  */
 void MPU6050_Base::getMotion6(int16_t* ax, int16_t* ay, int16_t* az, int16_t* gx, int16_t* gy, int16_t* gz) {
-    I2Cdev::readBytes(devAddr, MPU6050_RA_ACCEL_XOUT_H, 14, buffer, I2Cdev::readTimeout, wireObj);
-    *ax = (((int16_t)buffer[0]) << 8) | buffer[1];
-    *ay = (((int16_t)buffer[2]) << 8) | buffer[3];
-    *az = (((int16_t)buffer[4]) << 8) | buffer[5];
-    *gx = (((int16_t)buffer[8]) << 8) | buffer[9];
-    *gy = (((int16_t)buffer[10]) << 8) | buffer[11];
-    *gz = (((int16_t)buffer[12]) << 8) | buffer[13];
+    int8_t status = I2Cdev::readBytes(devAddr, MPU6050_RA_ACCEL_XOUT_H, 14, buffer, I2Cdev::readTimeout, wireObj);
+    if (status == 14) {
+        *ax = (((int16_t)buffer[0]) << 8) | buffer[1];
+        *ay = (((int16_t)buffer[2]) << 8) | buffer[3];
+        *az = (((int16_t)buffer[4]) << 8) | buffer[5];
+        *gx = (((int16_t)buffer[8]) << 8) | buffer[9];
+        *gy = (((int16_t)buffer[10]) << 8) | buffer[11];
+        *gz = (((int16_t)buffer[12]) << 8) | buffer[13];
+    }
 }
 /** Get 3-axis accelerometer readings.
  * These registers store the most recent accelerometer measurements.

@@ -39,6 +39,15 @@ sl_status_t IMU::setup(uint16_t sample_rate, uint8_t averaging)
         return SL_STATUS_FAIL;
     }
 
+    // Kích hoạt Hardware FIFO trên MPU6050 (6 trục: 12 bytes/mẫu)
+    mpuSensor.setFIFOEnabled(false);
+    mpuSensor.resetFIFO();
+    mpuSensor.setAccelFIFOEnabled(true);
+    mpuSensor.setXGyroFIFOEnabled(true);
+    mpuSensor.setYGyroFIFOEnabled(true);
+    mpuSensor.setZGyroFIFOEnabled(true);
+    mpuSensor.setFIFOEnabled(true);
+
     head = 0;
     tail = 0;
     count = 0;
@@ -64,18 +73,69 @@ void IMU::isrCallback(uint8_t int_id, void *ctx)
 
 void IMU::processInterrupt()
 {
-    int16_t ax, ay, az, gx, gy, gz;
-    mpuSensor.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    uint16_t fifo_count = mpuSensor.getFIFOCount();
+    
+    // Nếu FIFO bị tràn (>= 1024 bytes) hoặc có lỗi, thực hiện chu trình Reset & Khôi phục chuẩn của MPU6050
+    if (fifo_count >= 1024) {
+        mpuSensor.setFIFOEnabled(false);
+        mpuSensor.resetFIFO();
+        mpuSensor.setFIFOEnabled(true);
+        fifo_count = 0;
+    }
 
-    buffer[head].x = ax;
-    buffer[head].y = ay;
-    buffer[head].z = az;
-    buffer[head].gx = gx;
-    buffer[head].gy = gy;
-    buffer[head].gz = gz;
+    if (fifo_count >= 12)
+    {
+        uint8_t packet[12];
+        uint8_t max_packets = 50; // Giới hạn tối đa 50 packet/ngắt tránh treo I2C
+        while (fifo_count >= 12 && max_packets-- > 0)
+        {
+            mpuSensor.getFIFOBytes(packet, 12);
+            fifo_count -= 12;
 
-    head = (head + 1) % BUFFER_SIZE;
-    if (count < BUFFER_SIZE) count++; else tail = (tail + 1) % BUFFER_SIZE;
+            int16_t ax = (int16_t)(((uint16_t)packet[0] << 8) | packet[1]);
+            int16_t ay = (int16_t)(((uint16_t)packet[2] << 8) | packet[3]);
+            int16_t az = (int16_t)(((uint16_t)packet[4] << 8) | packet[5]);
+            int16_t gx = (int16_t)(((uint16_t)packet[6] << 8) | packet[7]);
+            int16_t gy = (int16_t)(((uint16_t)packet[8] << 8) | packet[9]);
+            int16_t gz = (int16_t)(((uint16_t)packet[10] << 8) | packet[11]);
+
+            CORE_DECLARE_IRQ_STATE;
+            CORE_ENTER_CRITICAL();
+
+            buffer[head].x = ax;
+            buffer[head].y = ay;
+            buffer[head].z = az;
+            buffer[head].gx = gx;
+            buffer[head].gy = gy;
+            buffer[head].gz = gz;
+
+            head = (head + 1) % BUFFER_SIZE;
+            if (count < BUFFER_SIZE) count++; else tail = (tail + 1) % BUFFER_SIZE;
+
+            CORE_EXIT_CRITICAL();
+        }
+    }
+    else
+    {
+        // Fallback: nếu FIFO chưa có packet hoặc đang khởi động, đọc trực tiếp 1 mẫu từ thanh ghi
+        int16_t ax, ay, az, gx, gy, gz;
+        mpuSensor.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+
+        CORE_DECLARE_IRQ_STATE;
+        CORE_ENTER_CRITICAL();
+
+        buffer[head].x = ax;
+        buffer[head].y = ay;
+        buffer[head].z = az;
+        buffer[head].gx = gx;
+        buffer[head].gy = gy;
+        buffer[head].gz = gz;
+
+        head = (head + 1) % BUFFER_SIZE;
+        if (count < BUFFER_SIZE) count++; else tail = (tail + 1) % BUFFER_SIZE;
+
+        CORE_EXIT_CRITICAL();
+    }
 }
 
 int IMU::available(void) { return count; }
@@ -120,6 +180,9 @@ void IMU::clearFIFO()
     count = 0;
 
     CORE_EXIT_CRITICAL();
+    mpuSensor.setFIFOEnabled(false);
+    mpuSensor.resetFIFO();
+    mpuSensor.setFIFOEnabled(true);
 }
 
 float normalize(float x, float mean, float std) {

@@ -241,9 +241,9 @@ void MAX30102_manager::task()
             uint8_t int1 = m_sensor.getINT1();
             uint8_t int2 = m_sensor.getINT2();
             int n = m_sensor.check();
-            for (int i = 0; i < n; i++)
+            if (n > 0)
             {
-                // Đồng bộ lấy dữ liệu MPU6050 cùng thời điểm với MAX30102
+                // Đồng bộ lấy dữ liệu MPU6050 1 lần cho mỗi đợt ngắt batch (tránh nghẽn I2C)
                 IMU::getInstance().processInterrupt();
             }
         }
