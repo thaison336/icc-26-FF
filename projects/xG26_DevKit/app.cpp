@@ -104,19 +104,29 @@ void DataProcessingTask(void *pvParameters)
     float ac_ir_buf[FEATURE_RATE_IR_AC_HZ];
     uint16_t idx = 0;
 
+    static uint32_t sample_timestamp_ms = 0;
+
     while (1)
     {
         // 1. Rút data thô đồng bộ (PPG + IMU) từ SensorHub (kích hoạt bởi ngắt MAX30102)
         while (fsm->hub->getsensordata(&data))
         {
-            uint32_t timestamp_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+            uint32_t current_tick_ms = pdTICKS_TO_MS(xTaskGetTickCount());
+            if (sample_timestamp_ms == 0 || (current_tick_ms > sample_timestamp_ms + 1000))
+            {
+                sample_timestamp_ms = current_tick_ms;
+            }
+            else
+            {
+                sample_timestamp_ms += 20; // 50Hz: tăng đều 20ms cho từng mẫu trong batch
+            }
 
             // 2. Chạy thuật toán DSP tính SpO2 & BPM
             bool has_new_stride = somniguard_dsp_process_sample(
                 &fsm->dsp_pro,
                 data.ppg_red,
                 data.ppg_ir,
-                timestamp_ms,
+                sample_timestamp_ms,
                 &fsm->dsp_res);
             float dc_ir = fsm->dsp_pro.dc_track_ir;
             float ac_ir_norm = (dc_ir > 0.0f) ? (fsm->dsp_pro.lpf_ir_prev / dc_ir) : 0.0f;
@@ -149,7 +159,7 @@ void DataProcessingTask(void *pvParameters)
                 float push_bpm = fsm->dsp_res.heart_rate;
                 float push_motion = fsm->motion_res.motion_energy;
 #if USE_MOCK_TENSOR_BUFFER
-                get_mock_tensor_metrics(fsm, timestamp_ms, &push_spo2, &push_bpm, &push_motion);
+                get_mock_tensor_metrics(fsm, sample_timestamp_ms, &push_spo2, &push_bpm, &push_motion);
                 fsm->dsp_res.spo2 = push_spo2;
                 fsm->dsp_res.heart_rate = push_bpm;
                 fsm->motion_res.motion_energy = push_motion;

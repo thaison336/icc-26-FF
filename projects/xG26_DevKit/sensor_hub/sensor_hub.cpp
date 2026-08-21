@@ -28,7 +28,7 @@ bool initMax30102(MAX30102_manager &MAX30102Sensor, int samplerate)
     MAX30102Sensor.driver().setup(0x1F, MAX30102_AVERAGING, 2, samplerate * MAX30102_AVERAGING, 411, 4096);
     MAX30102Sensor.driver().setFIFOAlmostFull(7);
     MAX30102Sensor.driver().enableAFULL();
-    MAX30102Sensor.driver().enableDATARDY(); // Bật ngắt DATA READY (50Hz: mỗi 20ms tạo 1 xung ngắt trên chân INT)
+    // MAX30102Sensor.driver().enableDATARDY(); // Bật ngắt DATA READY (50Hz: mỗi 20ms tạo 1 xung ngắt trên chân INT)
     MAX30102Sensor.driver().Max30102_setSampleRate(samplerate * MAX30102_AVERAGING);
     MAX30102Sensor.driver().debugDumpConfig();
     return true;
@@ -87,19 +87,23 @@ bool SensorHub::getsensordata(sensor_hub_data_t *data)
     if (data == nullptr)
         return false;
 
-    if (m_max30102.available() == 0 || m_imu.available() == 0)
+    if (m_max30102.available() == 0)
     {
         return false;
     }
 
-    imu_data_float_t imu_out;
-    m_imu.IMU_getfifo(&imu_out);
-    data->ax = imu_out.x;
-    data->ay = imu_out.y;
-    data->az = imu_out.z;
-    data->gx = imu_out.gx;
-    data->gy = imu_out.gy;
-    data->gz = imu_out.gz;
+    static imu_data_float_t last_imu_out = {0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f};
+    if (m_imu.available() > 0)
+    {
+        m_imu.IMU_getfifo(&last_imu_out);
+    }
+
+    data->ax = last_imu_out.x;
+    data->ay = last_imu_out.y;
+    data->az = last_imu_out.z;
+    data->gx = last_imu_out.gx;
+    data->gy = last_imu_out.gy;
+    data->gz = last_imu_out.gz;
 
     data->ppg_red = m_max30102.getFIFORed();
     data->ppg_ir = m_max30102.getFIFOIR();
@@ -159,11 +163,12 @@ void SensorHub::agcAmplitudeLed()
     uint8_t current_ir_amp = 110;
     m_max30102.setPulseAmplitudeRed(current_red_amp);
     m_max30102.setPulseAmplitudeIR(current_ir_amp);
-    // Xáº£ FIFO qua manager (interrupt task xá»­ lÃ½) Ä‘á»ƒ báº¯t Ä‘áº§u tá»« tráº¡ng thÃ¡i sáº¡ch
+    // Xả FIFO qua manager (interrupt task xử lý) để bắt đầu từ trạng thái sạch
     m_max30102.clearFIFO();
     m_max30102.setSampleRate(this->max30102_freq);
+    m_max30102.enableDATARDY(); // Bật ngắt từng mẫu để AGC phản hồi nhanh nhạy khi calib
 
-    // 1. Chá» interrupt task Ä‘á»c Ä‘á»§ dá»¯ liá»‡u vÃ  phÃ¡t hiá»‡n tay Ä‘áº·t vÃ o
+    // 1. Chờ interrupt task đọc đủ dữ liệu và phát hiện tay đặt vào
     printf("[AGC] Waiting for finger to be placed on sensor...\r\n");
 
     uint32_t wait_print_counter = 0;
@@ -314,5 +319,8 @@ void SensorHub::agcAmplitudeLed()
 
     printf("[AGC] DONE: RED Amp=0x%02X, IR Amp=0x%02X\r\n",
            current_red_amp, current_ir_amp);
-    // Interrupt task váº«n Ä‘ang cháº¡y, khÃ´ng cáº§n resume
+    // AGC hoàn tất: Tắt ngắt DATARDY (1 mẫu), chuyển sang ngắt AFULL (batch 25 mẫu) để tối ưu pin & I2C
+    m_max30102.disableDATARDY();
+    m_max30102.clearFIFO();
+    m_max30102.setSampleRate(this->max30102_freq);
 }

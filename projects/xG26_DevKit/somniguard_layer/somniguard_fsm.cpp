@@ -551,7 +551,16 @@ void somniguard_fsm_task(void *pvParameters)
                 fsm->prev_top_state = fsm->top_state;
                 fsm->top_state = target_state;
                 fsm->top_state_entry_ms = timestamp_ms;
-                fsm->active_init_done = false;
+                if (target_state == FSM_TOP_ACTIVE_MODE)
+                {
+                    somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_INIT);
+                }
+                else if (target_state == FSM_TOP_NORMAL_SLEEP)
+                {
+                    somniguard_buffer_reset(&fsm->buffer_pro);
+                    somniguard_dsp_reset(&fsm->dsp_pro);
+                    somniguard_fsm_set_normal_state(fsm, SUB_SLEEP_BUFFERING);
+                }
             }
             else if (timestamp_ms - fsm->top_state_entry_ms >= 60000UL)
             {
@@ -596,7 +605,6 @@ void somniguard_fsm_task(void *pvParameters)
              * - Tháo thiết bị lâu -> chuyển INACTIVE
              */
             somniguard_led_display(FSM_TOP_NORMAL_SLEEP);
-
             // Kiểm tra tuột ngón tay
             if (!fsm->dsp_pro.is_finger_attached)
             {
@@ -718,7 +726,7 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
                 }
-                else if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL && (fsm->dsp_res.spo2 > 90.0f && fsm->dsp_res.spo2 < 95.0f && fsm->dsp_res.signal_valid))
+                else if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL || (fsm->dsp_res.spo2 > 90.0f && fsm->dsp_res.spo2 < 95.0f && fsm->dsp_res.signal_valid))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_MODERATE_VIBRATE);
                 }
@@ -867,15 +875,19 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->requested_ppg_freq = PPG_SAMPLING_RATE_ACTIVE_HZ; // 1Hz
                     fsm->hub->MAX30102_driver().driver().wakeUp();
                     fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
-                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
+
                     somniguard_led_display(FSM_TOP_ACTIVE_MODE);
                     fsm->hub->agcAmplitudeLed();
+                    // Reset sạch DSP & Buffer để xóa toàn bộ dữ liệu biến thiên/nhiễu trong lúc AGC chỉnh LED
+                    somniguard_dsp_reset(&fsm->dsp_pro);
+
                     fsm->active_init_done = true;
                 }
                 // AGC đã chạy trong app_init(), không gọi ở đây nữa
                 // Sau 1s calib xong -> Chuyển sang WAKEFUL
-                if (elapsed_in_sub >= 1000)
+                if (elapsed_in_sub >= 1000UL)
                 {
+                    fsm->hub->imu_driver().setup(fsm->requested_imu_freq, 1);
                     somniguard_fsm_set_active_state(fsm, SUB_ACTIVE_WAKEFUL);
                 }
                 break;
