@@ -72,7 +72,19 @@ void actuators_set_haptic_pwm(uint8_t ampHaptic)
     if (!s_actuators_initialized)
         actuators_bsp_init();
 
-    TIMER_CompareBufSet(TIMER0, 0, ampHaptic);
+    if (ampHaptic == 0)
+    {
+        TIMER_CompareBufSet(TIMER0, 0, 0);
+        return;
+    }
+
+    // Scale chuẩn từ dải 0..255 sang dải 0..s_haptic_pwm_top để đạt đúng 100% công suất motor
+    uint32_t compare_val = ((uint32_t)ampHaptic * s_haptic_pwm_top) / 255U;
+    if (compare_val > s_haptic_pwm_top)
+    {
+        compare_val = s_haptic_pwm_top;
+    }
+    TIMER_CompareBufSet(TIMER0, 0, compare_val);
 }
 
 /* =========================================================================
@@ -133,16 +145,22 @@ extern "C" void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
         actuators_set_haptic_pwm(0);
         return;
     }
-    // Chu kỳ 10Hz = 100ms -> 50ms ON, 50ms OFF
-    const uint32_t period_ms = 1000U / HAPTIC_BURST_RATE_HZ; // 100ms
-    const uint32_t half_period_ms = period_ms / 2;           // 50ms
+
+    // Tính chu kỳ nhịp rung dựa trên HAPTIC_BURST_RATE_HZ
+    const uint32_t burst_rate = (HAPTIC_BURST_RATE_HZ == 0) ? 1 : HAPTIC_BURST_RATE_HZ;
+    const uint32_t period_ms = 1000U / burst_rate;
+    
+    // Tối ưu kích thích da: Thời gian ON chiếm ~80% dồn lực quán tính, OFF 20% tạo nhịp giật dứt khoát
+    const uint32_t off_ms = (period_ms >= 500) ? 150 : ((period_ms >= 200) ? 60 : (period_ms / 4));
+    const uint32_t on_ms = (period_ms > off_ms) ? (period_ms - off_ms) : (period_ms / 2);
+
     uint32_t elapsed_ms = 0;
     while (elapsed_ms < time)
     {
         actuators_set_haptic_pwm(ampHaptic);
-        vTaskDelay(pdMS_TO_TICKS(half_period_ms));
+        vTaskDelay(pdMS_TO_TICKS(on_ms));
         actuators_set_haptic_pwm(0);
-        vTaskDelay(pdMS_TO_TICKS(half_period_ms));
+        vTaskDelay(pdMS_TO_TICKS(off_ms));
         elapsed_ms += period_ms;
     }
     actuators_set_haptic_pwm(0);

@@ -702,8 +702,8 @@ void somniguard_deep_analysis_task(void *pvParameters)
                     fsm->last_ai_event = somniguard_ai_predict(&fsm->buffer_pro);
                 }
 
-                // Phục hồi tốt: SpO2 khôi phục >= 95% VÀ AI xác nhận bình thường -> NORMAL_SLEEP
-                if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 95.0f && fsm->last_ai_event == AI_EVENT_NORMAL && !fsm->motion_res.is_moving)
+                // Phục hồi tốt: SpO2 khôi phục >= 96% VÀ AI xác nhận bình thường -> NORMAL_SLEEP
+                if (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 96.0f && fsm->last_ai_event == AI_EVENT_NORMAL && !fsm->motion_res.is_moving)
                 {
                     uint32_t now_ms = pdTICKS_TO_MS(xTaskGetTickCount());
                     fsm->prev_top_state = fsm->top_state;
@@ -726,11 +726,11 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_STRONG_VIBRATE);
                 }
-                else if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL || (fsm->dsp_res.spo2 > 90.0f && fsm->dsp_res.spo2 < 95.0f && fsm->dsp_res.signal_valid))
+                else if (fsm->last_ai_event == AI_EVENT_APNEA_CRITICAL && (fsm->dsp_res.spo2 > 90.0f && fsm->dsp_res.spo2 < 96.0f && fsm->dsp_res.signal_valid))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_MODERATE_VIBRATE);
                 }
-                else if (fsm->last_ai_event == AI_EVENT_HYPOPNIA || (fsm->dsp_res.spo2 < 93.0f && fsm->dsp_res.signal_valid))
+                else if (fsm->last_ai_event == AI_EVENT_HYPOPNIA && (fsm->dsp_res.spo2 < 93.0f && fsm->dsp_res.signal_valid))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_MILD_VIBRATE);
                 }
@@ -753,9 +753,10 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 fsm->buzzer_alarm = false;
                 fsm->ble_sos_flag = false;
 
-                if (elapsed_in_sub >= HAPTIC_DURATION_MILD_MS)
+                if (elapsed_in_sub >= (HAPTIC_DURATION_MILD_MS + HAPTIC_DURATION_DELAY_MS))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
+                    somniguard_dsp_reset(&fsm->dsp_pro); // Reset DSP để tránh nhiễu rung mạnh
                 }
                 break;
             case SUB_INTERVENT_MODERATE_VIBRATE:
@@ -765,9 +766,10 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 fsm->buzzer_alarm = false;
                 fsm->ble_sos_flag = false;
 
-                if (elapsed_in_sub >= HAPTIC_DURATION_MODERATE_MS)
+                if (elapsed_in_sub >= (HAPTIC_DURATION_MODERATE_MS + HAPTIC_DURATION_DELAY_MS))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
+                    somniguard_dsp_reset(&fsm->dsp_pro); // Reset DSP để tránh nhiễu rung mạnh
                 }
                 break;
             case SUB_INTERVENT_STRONG_VIBRATE:
@@ -777,9 +779,10 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 fsm->buzzer_alarm = false;
                 fsm->ble_sos_flag = false;
 
-                if (elapsed_in_sub >= HAPTIC_DURATION_STRONG_MS)
+                if (elapsed_in_sub >= (HAPTIC_DURATION_STRONG_MS + HAPTIC_DURATION_DELAY_MS))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
+                    somniguard_dsp_reset(&fsm->dsp_pro); // Reset DSP để tránh nhiễu rung mạnh
                 }
                 break;
 
@@ -791,9 +794,10 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 fsm->ble_sos_flag = true;
 
                 // Nếu người dùng giật mình cựa quậy hoặc SpO2 hồi phục -> chuyển sang đánh giá
-                if (fsm->motion_res.is_moving || (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 93.0f))
+                if ((fsm->motion_res.is_moving || (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 93.0f)) && elapsed_in_sub >= (HAPTIC_DURATION_STRONG_MS + HAPTIC_DURATION_DELAY_MS))
                 {
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
+                    somniguard_dsp_reset(&fsm->dsp_pro);
                 }
                 break;
 

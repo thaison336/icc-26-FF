@@ -25,7 +25,7 @@ extern "C"
  * 1. SYSTEM CONFIGURATION MACROS
  * ========================================================================= */
 //========================IMU DEFINE=====================//
-#define IMU_SAMPLING_RATE_ACTIVE_HZ 50    // Tần số lấy mẫu IMU ở trạng thái ACTIVE (25Hz)
+#define IMU_SAMPLING_RATE_ACTIVE_HZ 25    // Tần số lấy mẫu IMU ở trạng thái ACTIVE (25Hz)
 #define IMU_SAMPLING_RATE_SLEEP_HZ 50     // Tần số lấy mẫu IMU ở trạng thái NORMAL_SLEEP (50Hz)
 #define IMU_MAX_WINDOW_SIZE 128           // Dung lượng tối đa bộ đệm IMU ring buffer (128 mẫu)
 #define PARAM_IMU_MOTION_THRESHOLD 0.025f // Ngưỡng độ lệch chuẩn gia tốc phát hiện cựa tay (18 mg ~ 0.018g)
@@ -51,25 +51,25 @@ extern "C"
 #define BPM_MIN 40.0f                   // Nhịp tim tối thiểu (BPM)
 #define BPM_MAX 200.0f                  // Nhịp tim tối đa (BPM)
 #define APNEA_DROP_THRESHOLD 3.5f       // Ngưỡng giảm SpO2 (%) cảnh báo Apnea
-#define AC_AMP_DROP_THRESHOLD_PCT 60.0f // % giảm biên độ PPG AC so với nền → kích phát Apnea heuristic
+#define AC_AMP_DROP_THRESHOLD_PCT 45.0f // % giảm biên độ PPG AC so với nền → kích phát Apnea heuristic
     /* Ngưỡng & Tham số Motor Rung Haptic (Nguồn: Cori 2018, van Maanen 2013, Benoist 2017) */
 #define HAPTIC_FREQ_HZ 175           // Tần số rung tối ưu 150–200Hz (thụ thể áp lực Meissner/Pacinian)
 #define HAPTIC_BURST_RATE_HZ 10      // Nhịp xung ngắt quãng 10Hz (tránh lờn/trơ thụ thể)
-#define HAPTIC_LEVEL_MILD_PCT 20     // ~0.2g → Cấp 1 nhẹ (SUB_INTERVENT_MILD_VIBRATE), không thức giấc
-#define HAPTIC_LEVEL_STRONG_PCT 80   // ~1.0g → Cấp 2 mạnh (SUB_INTERVENT_STRONG_VIBRATE), max an toàn N3
-#define HAPTIC_LEVEL_MODERATE_PCT 50 // ~0.5g → Cấp 2 vừa (SUB_INTERVENT_MODERATE_VIBRATE), thức giấc nhẹ
+#define HAPTIC_LEVEL_MILD_PCT 20     // ~0.6g → Cấp 1 nhẹ (SUB_INTERVENT_MILD_VIBRATE), kích thích rõ rệt
+#define HAPTIC_LEVEL_MODERATE_PCT 80 // ~1.0g → Cấp 2 vừa (SUB_INTERVENT_MODERATE_VIBRATE), cảnh báo vừa
+#define HAPTIC_LEVEL_STRONG_PCT 100  // ~1.2g → Cấp 2 mạnh (SUB_INTERVENT_STRONG_VIBRATE), 100% max công suất
 /** @brief Convert % cường độ → giá trị PWM raw (0–255, PWM_TOP_VALUE = 255) */
 #define HAPTIC_PCT_TO_PWM(pct) ((uint8_t)(((uint32_t)(pct) * 255U) / 100U))
 
 /** @brief Giá trị PWM tính sẵn cho từng cấp can thiệp */
-#define HAPTIC_PWM_MILD HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_MILD_PCT)         // = 51  (20% duty)
-#define HAPTIC_PWM_STRONG HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_STRONG_PCT)     // = 204 (80% duty)
-#define HAPTIC_PWM_MODERATE HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_MODERATE_PCT) // = 127 (50% duty)
+#define HAPTIC_PWM_MILD HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_MILD_PCT)         // = 153 (60% duty)
+#define HAPTIC_PWM_MODERATE HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_MODERATE_PCT) // = 216 (85% duty)
+#define HAPTIC_PWM_STRONG HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_STRONG_PCT)     // = 255 (100% duty)
 /** @brief Thời gian rung cho từng cấp can thiệp (ms) */
 #define HAPTIC_DURATION_MILD_MS 7000U     // 7 giây – kích thích nhẹ giai đoạn 1
-#define HAPTIC_DURATION_STRONG_MS 7000U   // 7 giây – đánh thức mạnh giai đoạn 2
+#define HAPTIC_DURATION_STRONG_MS 7000U   // 5 giây – đánh thức mạnh giai đoạn 2
 #define HAPTIC_DURATION_MODERATE_MS 5000U // 5 giây – rung trung bình giai đoạn 2
-
+#define HAPTIC_DURATION_DELAY_MS 3000U    // 3 giây – delay trước khi đánh giá phục hồi
     /* Các tư thế nằm người dùng (Posture Enum) */
     typedef enum
     {

@@ -481,23 +481,23 @@ static void TestHapticMotorTask(void *pvParameters)
 
     while (1)
     {
-        // Giai đoạn 1: Rung nhẹ 20% Duty trong 2 giây (Cấp 1 - Mild)
-        printf("[HAPTIC TEST] 1. Rung nhe (20%% Duty - Cấp Mild) -> 2 giay\r\n");
-        set_duty(20);
+        // Giai đoạn 1: Rung kích thích nhẹ 60% Duty trong 2 giây (Cấp 1 - Mild)
+        printf("[HAPTIC TEST] 1. Rung nhe ro ret (60%% Duty - Cấp Mild) -> 2 giay\r\n");
+        set_duty(60);
         vTaskDelay(pdMS_TO_TICKS(2000));
         set_duty(0);
         vTaskDelay(pdMS_TO_TICKS(1000));
 
-        // Giai đoạn 2: Rung trung bình 50% Duty trong 2 giây
-        printf("[HAPTIC TEST] 2. Rung vua (50%% Duty) -> 2 giay\r\n");
-        set_duty(50);
+        // Giai đoạn 2: Rung vừa 85% Duty trong 2 giây (Cấp 2 - Moderate)
+        printf("[HAPTIC TEST] 2. Rung vua (85%% Duty - Cấp Moderate) -> 2 giay\r\n");
+        set_duty(85);
         vTaskDelay(pdMS_TO_TICKS(2000));
         set_duty(0);
         vTaskDelay(pdMS_TO_TICKS(1000));
 
-        // Giai đoạn 3: Rung mạnh 80% Duty trong 2 giây (Cấp 2 - Strong)
-        printf("[HAPTIC TEST] 3. Rung manh (80%% Duty - Cấp Strong) -> 2 giay\r\n");
-        set_duty(80);
+        // Giai đoạn 3: Rung cực đại 100% Duty trong 2 giây (Cấp 3 - Strong Max)
+        printf("[HAPTIC TEST] 3. Rung MAX cong suat (100%% Duty - Cấp Strong) -> 2 giay\r\n");
+        set_duty(100);
         vTaskDelay(pdMS_TO_TICKS(2000));
         set_duty(0);
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -512,12 +512,12 @@ static void TestHapticMotorTask(void *pvParameters)
         set_duty(0);
         vTaskDelay(pdMS_TO_TICKS(1000));
 
-        // Giai đoạn 5: Rung nhịp ngắt quãng Burst 10Hz (50ms ON / 50ms OFF) trong 3 giây
-        printf("[HAPTIC TEST] 5. Rung nhip Burst 10Hz (80%% Duty) -> 3 giay\r\n");
-        for (int i = 0; i < 30; i++) // 30 chu kỳ x 100ms = 3000ms
+        // Giai đoạn 5: Rung nhịp búng giật dứt khoát 100% Duty (150ms ON / 50ms OFF) trong 3 giây
+        printf("[HAPTIC TEST] 5. Rung nhip giat bung vao da (100%% Duty - 150ms ON / 50ms OFF) -> 3 giay\r\n");
+        for (int i = 0; i < 15; i++) // 15 chu kỳ x 200ms = 3000ms
         {
-            set_duty(80);
-            vTaskDelay(pdMS_TO_TICKS(50));
+            set_duty(100);
+            vTaskDelay(pdMS_TO_TICKS(150));
             set_duty(0);
             vTaskDelay(pdMS_TO_TICKS(50));
         }
