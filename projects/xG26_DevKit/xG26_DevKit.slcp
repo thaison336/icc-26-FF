@@ -83,6 +83,9 @@ component:
   id: emlib_i2c
 - package: simplicity_sdk
   vendor: silabs
+  id: emlib_iadc
+- package: simplicity_sdk
+  vendor: silabs
   id: freertos
 - package: simplicity_sdk
   vendor: silabs

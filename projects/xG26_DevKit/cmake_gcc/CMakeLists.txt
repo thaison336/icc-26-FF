@@ -25,6 +25,7 @@ add_executable(xG26_Devkit
     ../somniguard_layer/somniguard_fsm.cpp
     ../other_driver/ble_notification_manager.cpp
     ../other_driver/actuators_bsp.cpp
+    ../other_driver/battery_monitor.cpp
 )
 
 target_include_directories(xG26_Devkit PUBLIC

@@ -14,6 +14,10 @@
 
 static bool s_actuators_initialized = false;
 static uint32_t s_haptic_pwm_top = PWM_TOP_VALUE;
+
+// Flag hủy rung: set = true để abort vòng lặp haptic đang chạy ngay lập tức
+static volatile bool g_haptic_abort = false;
+
 void actuators_bsp_init(void)
 {
     if (s_actuators_initialized)
@@ -142,9 +146,13 @@ extern "C" void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
 {
     if (ampHaptic == 0 || time == 0)
     {
-        actuators_set_haptic_pwm(0);
+        g_haptic_abort = true;       // Yêu cầu abort vòng lặp đang chạy (nếu có)
+        actuators_set_haptic_pwm(0); // Tắt PWM ngay lập tức
         return;
     }
+
+    // Bắt đầu rung mới: clear abort flag
+    g_haptic_abort = false;
 
     // Tính chu kỳ nhịp rung dựa trên HAPTIC_BURST_RATE_HZ
     const uint32_t burst_rate = (HAPTIC_BURST_RATE_HZ == 0) ? 1 : HAPTIC_BURST_RATE_HZ;
@@ -157,6 +165,11 @@ extern "C" void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
     uint32_t elapsed_ms = 0;
     while (elapsed_ms < time)
     {
+        if (g_haptic_abort)          // Kiểm tra abort mỗi burst cycle (~100ms)
+        {
+            actuators_set_haptic_pwm(0);
+            return;
+        }
         actuators_set_haptic_pwm(ampHaptic);
         vTaskDelay(pdMS_TO_TICKS(on_ms));
         actuators_set_haptic_pwm(0);
@@ -165,6 +178,7 @@ extern "C" void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
     }
     actuators_set_haptic_pwm(0);
 }
+
 
 #include "ble_notification_manager.h"
 

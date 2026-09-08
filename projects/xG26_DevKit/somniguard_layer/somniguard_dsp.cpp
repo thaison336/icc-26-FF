@@ -204,23 +204,30 @@ bool somniguard_dsp_calculate_spo2(somniguard_dsp_t *dsp, float *out_spo2, float
                 dsp->buf_spo2[hi] = instant_SpO2;
             dsp->is_first_calc = false;
         }
-        else if (sqi_ok)
+        else
         {
-            float spo2_new = SPO2_SMOOTH * instant_SpO2 + (1.0f - SPO2_SMOOTH) * dsp->final_spo2;
+
+            // 2. Làm mịn trượt (Exponential Moving Average)
+            float spo2_new_ave = SPO2_SMOOTH * instant_SpO2 + (1.0f - SPO2_SMOOTH) * dsp->final_spo2;
+            // 1. Lọc gai nhọn đột biến (Hampel Filter) trên mẫu tức thời trước
+            float spo2_new = apply_hampel_filter(dsp, spo2_new_ave);
+            // 3. Giới hạn tốc độ tụt SpO2 sinh lý
             if (spo2_new < dsp->final_spo2 - MAX_SPO2_DROP)
             {
                 spo2_new = dsp->final_spo2 - MAX_SPO2_DROP;
             }
             dsp->final_spo2 = spo2_new;
             dsp->final_r = SPO2_SMOOTH * instant_R + (1.0f - SPO2_SMOOTH) * dsp->final_r;
-            dsp->final_spo2 = apply_hampel_filter(dsp, dsp->final_spo2);
         }
+
+        if (out_spo2)
+            *out_spo2 = dsp->final_spo2;
+        if (out_r)
+            *out_r = dsp->final_r;
+        return sqi_ok;
     }
-    if (out_spo2)
-        *out_spo2 = dsp->final_spo2;
-    if (out_r)
-        *out_r = dsp->final_r;
-    return true;
+
+    return false;
 }
 
 /**
@@ -236,17 +243,17 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
 {
     if (!dsp)
         return false;
-    // 1. KIá»‚M TRA Há»ž SÃ NG HOáº¶C NHáº¤C NGÃ“N TAY
-    if (raw_ir < 40000 || raw_red < 40000)
-    {
-        somniguard_dsp_reset(dsp);
-        if (result)
-        {
-            memset(result, 0, sizeof(somniguard_dsp_result_t));
-            result->signal_valid = false;
-        }
-        return false;
-    }
+    // // 1. KIá»‚M TRA Há»ž SÃ NG HOáº¶C NHáº¤C NGÃ“N TAY
+    // if (raw_ir < 40000 || raw_red < 40000)
+    // {
+    //     somniguard_dsp_reset(dsp);
+    //     if (result)
+    //     {
+    //         memset(result, 0, sizeof(somniguard_dsp_result_t));
+    //         result->signal_valid = false;
+    //     }
+    //     return false;
+    // }
     float red_f = (float)raw_red;
     float ir_f = (float)raw_ir;
     // 2. KHá»žI Táº O Ä Æ¯á»œNG Ná»€N KHI Vá»ªA Ä áº¶T TAY
@@ -291,22 +298,20 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
     {
         dsp->stride_counter = 0;
         float current_spo2 = -1, current_r = -1;
-        if (somniguard_dsp_calculate_spo2(dsp, &current_spo2, &current_r))
+        bool spo2_valid = somniguard_dsp_calculate_spo2(dsp, &current_spo2, &current_r);
+        if (result)
         {
-            if (result)
-            {
-                result->spo2 = current_spo2;
-                result->heart_rate = (float)dsp->smoothed_bpm;
-                result->ac_red = dsp->rms_red;
-                result->dc_red = dsp->dc_track_red;
-                result->ac_ir = dsp->rms_ir;
-                result->dc_ir = dsp->dc_track_ir;
-                result->r_value = current_r;
-                result->signal_valid = (current_spo2 >= SPO2_MIN && current_spo2 <= SPO2_MAX);
-                // printf("here\r\n");
-            }
-            return true;
+            result->spo2 = current_spo2;
+            result->heart_rate = (float)dsp->smoothed_bpm;
+            result->ac_red = dsp->rms_red;
+            result->dc_red = dsp->dc_track_red;
+            result->ac_ir = dsp->rms_ir;
+            result->dc_ir = dsp->dc_track_ir;
+            result->r_value = current_r;
+            result->signal_valid = spo2_valid;
+            // printf("here\r\n");
         }
+        return true;
     }
     return false;
 }
