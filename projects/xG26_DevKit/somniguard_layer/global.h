@@ -67,9 +67,9 @@ extern "C"
 #define HAPTIC_PWM_STRONG HAPTIC_PCT_TO_PWM(HAPTIC_LEVEL_STRONG_PCT)     // = 255 (100% duty)
 /** @brief Thời gian rung cho từng cấp can thiệp (ms) */
 #define HAPTIC_DURATION_MILD_MS 7000U     // 7 giây – kích thích nhẹ giai đoạn 1
-#define HAPTIC_DURATION_STRONG_MS 7000U   // 5 giây – đánh thức mạnh giai đoạn 2
+#define HAPTIC_DURATION_STRONG_MS 10000U  // 5 giây – đánh thức mạnh giai đoạn 2
 #define HAPTIC_DURATION_MODERATE_MS 5000U // 5 giây – rung trung bình giai đoạn 2
-#define HAPTIC_DURATION_DELAY_MS 3000U    // 3 giây – delay trước khi đánh giá phục hồi
+#define HAPTIC_DURATION_DELAY_MS 5000U    // 5 giây – delay trước khi đánh giá phục hồi
     /* Các tư thế nằm người dùng (Posture Enum) */
     typedef enum
     {

@@ -28,10 +28,10 @@ extern "C"
 
 /* Hằng số cấu hình thời gian chuyển trạng thái FSM (ms) */
 #define FSM_INACTIVE_TIMEOUT_MS (1800000UL)          // 30 phút không đeo -> INACTIVE
-#define FSM_SLEEP_ENTER_TIME_MS (300000UL)           // 5 phút không cựa tay -> NORMAL_SLEEP
+#define FSM_SLEEP_ENTER_TIME_MS (80000UL)            // 5 phút không cựa tay -> NORMAL_SLEEP
 #define FSM_WAKE_MOTION_TIME_MS (300000UL)           // 5 phút cựa tay liên tục -> ACTIVE_MODE
 #define FSM_MILD_VIB_DURATION_MS (5000UL)            // 5 giây rung nhẹ
-#define FSM_STRONG_VIB_DURATION_MS (7000UL)          // 7 giây rung mạnh
+#define FSM_STRONG_VIB_DURATION_MS (10000UL)         // 10 giây rung mạnh
 #define FSM_EVALUATE_TIMEOUT_MS (10000UL)            // 10 giây đánh giá phục hồi sau can thiệp
 #define FSM_EVALUATE_INTTERVAL_ADVANCED_MS (30000UL) // 15 giây đánh giá phục hồi sau can thiệp (nâng cấp rung mạnh + BLE SOS)
 /* Ngưỡng phát hiện bất thường trong NORMAL_SLEEP */
@@ -95,6 +95,8 @@ extern "C"
         uint8_t ac_history_idx;     // Con trỏ ghi vòng tròn (0..9)
         uint8_t ac_history_count;   // Số mẫu 1s đã tích lũy (tối đa 10)
         uint32_t last_ac_sample_ms; // Thời điểm lấy mẫu AC 1s gần nhất
+
+        bool is_calibrating; // true: tạm dừng xử lý dữ liệu để nhường FIFO cho AGC
     } somniguard_fsm_t;
 
     /**

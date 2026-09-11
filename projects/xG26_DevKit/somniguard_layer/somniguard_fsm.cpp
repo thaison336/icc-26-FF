@@ -175,6 +175,7 @@ void somniguard_fsm_init(somniguard_fsm_t *fsm, SensorHub *hub)
     //        somniguard_top_state_str(fsm->top_state),
     //        somniguard_active_state_str(fsm->active_state));
     // fflush(stdout);
+    fsm->is_calibrating = false;
 }
 
 void somniguard_fsm_set_top_state(somniguard_fsm_t *fsm, somniguard_top_fsm_state_t new_state)
@@ -775,7 +776,7 @@ void somniguard_deep_analysis_task(void *pvParameters)
                     fsm->ble_sos_flag = false;
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
                     //  somniguard_dsp_reset(&fsm->dsp_pro);
-                    fsm->dsp_res.signal_valid = false;
+                    // fsm->dsp_res.signal_valid = false;
                 }
                 break;
             case SUB_INTERVENT_MODERATE_VIBRATE:
@@ -793,7 +794,7 @@ void somniguard_deep_analysis_task(void *pvParameters)
                     fsm->ble_sos_flag = false;
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
                     // somniguard_dsp_reset(&fsm->dsp_pro);
-                    fsm->dsp_res.signal_valid = false;
+                    // fsm->dsp_res.signal_valid = false;
                 }
                 break;
             case SUB_INTERVENT_STRONG_VIBRATE:
@@ -811,7 +812,7 @@ void somniguard_deep_analysis_task(void *pvParameters)
                     fsm->ble_sos_flag = false;
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
                     // somniguard_dsp_reset(&fsm->dsp_pro);
-                    fsm->dsp_res.signal_valid = false;
+                    // fsm->dsp_res.signal_valid = false;
                 }
                 break;
 
@@ -826,11 +827,11 @@ void somniguard_deep_analysis_task(void *pvParameters)
                 if ((fsm->motion_res.is_moving || (fsm->dsp_res.signal_valid && fsm->dsp_res.spo2 >= 93.0f)) && elapsed_in_sub >= (HAPTIC_DURATION_STRONG_MS + HAPTIC_DURATION_DELAY_MS))
                 {
                     // Tắt actuator ngay tại điểm transition → apply_actuators sẽ thấy vibrate_level=0 khi fire
-                    // fsm->vibrate_level = 0;
-                    // fsm->buzzer_alarm = false;
-                    // fsm->ble_sos_flag = false;
+                    fsm->vibrate_level = 0;
+                    fsm->buzzer_alarm = false;
+                    fsm->ble_sos_flag = false;
                     somniguard_fsm_set_sub_state(fsm, SUB_INTERVENT_EVALUATE_RECOVERY);
-                    fsm->dsp_res.signal_valid = false;
+                    // fsm->dsp_res.signal_valid = false;
                 }
                 break;
 
@@ -914,6 +915,7 @@ void somniguard_active_mode_task(void *pvParameters)
                 if (!fsm->active_init_done)
                 {
                     // Tắt các thiết bị cảnh báo
+
                     fsm->vibrate_level = 0;
                     fsm->buzzer_alarm = false;
                     fsm->ble_sos_flag = false;
@@ -925,9 +927,12 @@ void somniguard_active_mode_task(void *pvParameters)
                     fsm->hub->MAX30102_driver().setSampleRate(fsm->requested_ppg_freq);
 
                     somniguard_led_display(FSM_TOP_ACTIVE_MODE);
+                    fsm->is_calibrating = true;
                     fsm->hub->agcAmplitudeLed();
-                    // Reset sạch DSP & Buffer để xóa toàn bộ dữ liệu biến thiên/nhiễu trong lúc AGC chỉnh LED
+                    //  Reset sạch DSP & Buffer để xóa toàn bộ dữ liệu biến thiên/nhiễu trong lúc AGC chỉnh LED
                     somniguard_dsp_reset(&fsm->dsp_pro);
+
+                    fsm->is_calibrating = false;
 
                     fsm->active_init_done = true;
                 }
@@ -1034,7 +1039,7 @@ void somniguard_normal_sleep_task(void *pvParameters)
                 if (!fsm->sleep_buffering_entry_done && fsm->prev_top_state != FSM_TOP_DEEP_ANALYSIS)
                 {
                     // Hiệu ứng LED nhấp nháy báo bắt đầu vào chế độ đo ngủ ban đêm rồi tắt hẳn
-                    somniguard_led_sleep_buffering_start();
+                    // somniguard_led_sleep_buffering_start();
 
                     fsm->vibrate_level = 0;
                     fsm->buzzer_alarm = false;
@@ -1245,7 +1250,7 @@ void somniguard_fsm_apply_actuators(somniguard_fsm_t *fsm)
         somniguard_haptic_motor(HAPTIC_PWM_STRONG, HAPTIC_DURATION_STRONG_MS);
         break; // Rung mạnh (255/255 trong 7s)
     case 4:
-        somniguard_haptic_motor(HAPTIC_PWM_STRONG, 20000U);
+        somniguard_haptic_motor(HAPTIC_PWM_STRONG, HAPTIC_DURATION_STRONG_MS);
         break; // Rung cực mạnh (255/255 trong 20s)
     }
 }

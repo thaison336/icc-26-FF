@@ -50,7 +50,7 @@
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
 
-#define USE_MOCK_TENSOR_BUFFER 1
+#define USE_MOCK_TENSOR_BUFFER 0
 
 #if USE_MOCK_TENSOR_BUFFER
 // Hàm sinh dữ liệu Tensor Buffer giả lập:
@@ -119,6 +119,11 @@ void DataProcessingTask(void *pvParameters)
   {
     // 1. Rút data thô đồng bộ (PPG + IMU) từ SensorHub (kích hoạt bởi ngắt
     // MAX30102)
+    while (fsm->is_calibrating)
+    {
+      vTaskDelay(pdMS_TO_TICKS(50));
+      continue;
+    }
     while (fsm->hub->getsensordata(&data))
     {
       uint32_t current_tick_ms = pdTICKS_TO_MS(xTaskGetTickCount());
@@ -609,7 +614,7 @@ void app_init(void)
   }
 
   // Chạy AGC calibration trước khi tạo FSM tasks
-  // mySensorHub.agcAmplitudeLed();
+  mySensorHub.agcAmplitudeLed();
 
   // // Khởi tạo Bộ Não FSM
   somniguard_fsm_init(&myFSM, &mySensorHub);
@@ -642,10 +647,9 @@ void app_init(void)
 
   // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power
   // profiling)
-  //   xTaskCreate(FsmLoggerTask, "FsmLogger", 1024, &myFSM, tskIDLE_PRIORITY +
-  //   1,
-  //               NULL);
-  //   vTaskDelay(pdMS_TO_TICKS(50));
+  xTaskCreate(FsmLoggerTask, "FsmLogger", 1024, &myFSM, tskIDLE_PRIORITY + 1,
+              NULL);
+  vTaskDelay(pdMS_TO_TICKS(50));
 
   // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
   xTaskCreate(BleTelemetryTask, "BleTelem", 384, &myFSM, tskIDLE_PRIORITY + 1,

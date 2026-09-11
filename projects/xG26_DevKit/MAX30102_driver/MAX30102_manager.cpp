@@ -86,7 +86,7 @@ bool MAX30102_manager::sendCommand(
         }
         return true;
     }
-  //  printf("Queue FULL!\r\n");
+    //  printf("Queue FULL!\r\n");
     return false;
 }
 bool MAX30102_manager::setSampleRate(uint16_t rate)
@@ -251,7 +251,7 @@ void MAX30102_manager::task()
                              &cmd,
                              0) == pdPASS)
         {
-        //    printf("Receive command %d\n", cmd.type);
+            //    printf("Receive command %d\n", cmd.type);
             switch (cmd.type)
             {
 
@@ -268,17 +268,17 @@ void MAX30102_manager::task()
             case SENSOR_CMD_SET_LED_RED:
 
                 m_sensor.setPulseAmplitudeRed(cmd.value);
-                m_sensor.clearFIFO();
-                m_sensor.Max30102_setSampleRate(50);
-                m_sensor.clearDataBuffer();
+                // m_sensor.clearFIFO();
+                // m_sensor.Max30102_setSampleRate(50);
+                // m_sensor.clearDataBuffer();
                 break;
 
             case SENSOR_CMD_SET_LED_IR:
 
                 m_sensor.setPulseAmplitudeIR(cmd.value);
-                m_sensor.clearFIFO();
-                m_sensor.Max30102_setSampleRate(50);
-                m_sensor.clearDataBuffer();
+                // m_sensor.clearFIFO();
+                // m_sensor.Max30102_setSampleRate(50);
+                // m_sensor.clearDataBuffer();
                 break;
 
             case SENSOR_CMD_SET_LED_GREEN:

@@ -221,7 +221,7 @@ void SensorHub::agcAmplitudeLed()
     while (iteration < MAX_AGC_ITERATIONS)
     {
         iteration++;
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(150));
 
         uint8_t avail = m_max30102.available();
         if (avail == 0)
