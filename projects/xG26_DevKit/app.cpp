@@ -38,6 +38,7 @@
 #include "other_driver/ble_notification_manager.h"
 #include "sensor_hub/sensor_hub.h"
 #include "sl_iostream.h"
+#include "sl_sleeptimer.h"
 #include "somniguard_layer/somniguard_buffer.h"
 #include "somniguard_layer/somniguard_dsp.h"
 #include "somniguard_layer/somniguard_fsm.h"
@@ -50,7 +51,7 @@
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
 
-#define USE_MOCK_TENSOR_BUFFER 0
+#define USE_MOCK_TENSOR_BUFFER 1
 
 #if USE_MOCK_TENSOR_BUFFER
 // Hàm sinh dữ liệu Tensor Buffer giả lập:
@@ -121,7 +122,7 @@ void DataProcessingTask(void *pvParameters)
     // MAX30102)
     while (fsm->is_calibrating)
     {
-      vTaskDelay(pdMS_TO_TICKS(50));
+      vTaskDelay(pdMS_TO_TICKS(100));
       continue;
     }
     while (fsm->hub->getsensordata(&data))
@@ -309,15 +310,11 @@ void BleTelemetryTask(void *pvParameters)
       batt_sample_counter = 0;
       battery_monitor_sample();
       current_batt_percent = battery_monitor_get_percent();
-      // Nếu pin yếu (< 20%), phát sự kiện cảnh báo qua BLE Event một lần
-      if (battery_monitor_is_low())
+      // Nếu pin yếu (< 20%) và THỰC SỰ ĐƯỢC CẮM (Vbat >= 2000mV), phát sự kiện cảnh báo qua BLE Event một lần
+      if (battery_monitor_is_connected() && battery_monitor_is_low())
       {
         if (!batt_low_alert_sent)
         {
-          // printf("[BATTERY] Low Battery Warning: %u%% (%lu mV)\r\n",
-          //        current_batt_percent,
-          //        (unsigned long)battery_monitor_get_voltage_mv());
-
           somniguard_ble_notify_event(
               SOMNIGUARD_BLE_EVT_TYPE_POWER_SYSTEM,
               SOMNIGUARD_BLE_EVT_CODE_BATTERY_LOW, current_batt_percent,
@@ -326,7 +323,7 @@ void BleTelemetryTask(void *pvParameters)
           batt_low_alert_sent = true;
         }
       }
-      else
+      else if (!battery_monitor_is_low())
       {
         batt_low_alert_sent = false; // Reset cờ khi pin đã được sạc lại
       }
@@ -590,20 +587,38 @@ void app_init(void)
 {
   printf("========== APP INIT FSM RUN START ==========\r\n");
 
-  // Hiệu ứng LED chạy đuổi báo hiệu hệ thống bắt đầu boot
+  // // Hiệu ứng LED chạy đuổi báo hiệu hệ thống bắt đầu boot
   somniguard_led_boot_sequence();
 
   // Khởi tạo BLE Notification Manager
   somniguard_ble_manager_init();
 
-  // Khởi tạo Battery Monitor (IADC0 - PD02)
+  // Khởi tạo Battery Monitor (IADC0 - AIN0 Pad 1)
   battery_monitor_init();
+
+  // =========================================================================
+  // CHẾ ĐỘ TEST ĐỌC RAW BARE-METAL (HOÀN TOÀN KHÔNG CÓ RTOS)
+  // Đặt bằng 1: Chạy vòng lặp đọc Raw liên tục, CPU không chạy FreeRTOS tasks
+  // Đặt bằng 0: Chạy toàn bộ hệ thống SomniGuard FreeRTOS bình thường
+  // =========================================================================
+#define TEST_ADC_RAW_BAREMETAL 0
+#if TEST_ADC_RAW_BAREMETAL
+  printf("\r\n=======================================================\r\n");
+  printf("  [TEST BARE-METAL] DANG DOC RAW IADC AIN0 PAD 1 (NO RTOS)\r\n");
+  printf("=======================================================\r\n");
+  while (1)
+  {
+    battery_monitor_sample();
+    sl_sleeptimer_delay_millisecond(5000);
+  }
+#endif
 
   // // Khởi tạo AI Model
   init_model();
 
   // Khởi tạo Sensor Hub (Cấu hình IMU & MAX30102 ở 50Hz)
   if (!mySensorHub.initSensors(50))
+
   {
     printf("WARNING: Failed to initialize SensorHub! Continuing system "
            "boot...\r\n");
@@ -645,14 +660,14 @@ void app_init(void)
               tskIDLE_PRIORITY + 1, NULL);
   vTaskDelay(pdMS_TO_TICKS(50));
 
-  // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power
-  // profiling)
-  xTaskCreate(FsmLoggerTask, "FsmLogger", 1024, &myFSM, tskIDLE_PRIORITY + 1,
-              NULL);
-  vTaskDelay(pdMS_TO_TICKS(50));
+  // // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power
+  // // profiling)
+  // xTaskCreate(FsmLoggerTask, "FsmLogger", 1024, &myFSM, tskIDLE_PRIORITY + 1,
+  //             NULL);
+  // vTaskDelay(pdMS_TO_TICKS(50));
 
   // 7. Task BLE Telemetry Publishing (1Hz / 0.2Hz)
-  xTaskCreate(BleTelemetryTask, "BleTelem", 384, &myFSM, tskIDLE_PRIORITY + 1,
+  xTaskCreate(BleTelemetryTask, "BleTelem", 768, &myFSM, tskIDLE_PRIORITY + 1,
               NULL);
 
   // // 8. Task Test Haptic Motor (PA07) - Chạy trực tiếp
@@ -673,10 +688,27 @@ void app_init(void)
   //     tskIDLE_PRIORITY + 3,
   //     NULL);
 
-  // Báo hiệu khởi tạo hệ thống & Tasks thành công (Chớp 2 LED)
-  somniguard_led_boot_success();
+  // Báo hiệu khởi tạo hệ thống & Tas      ks thành công (Chớp 2 LED)
+  // somniguard_led_boot_success();
 
   printf("========== APP INIT FSM RUN DONE ==========\r\n");
+}
+
+/* =========================================================================
+ * HOOK BÁO LỖI TRÀN STACK FREERTOS (OVERFLOW HOOK)
+ * Giúp in ra tên Task bị tràn bộ nhớ stack thay vì đơ / treo chip ngầm
+ * ========================================================================= */
+extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
+{
+  (void)xTask;
+  printf("\r\n\r\n=======================================================\r\n");
+  printf("!!! [FREERTOS FATAL ERROR] TRÀN STACK (STACK OVERFLOW) !!!\r\n");
+  printf("Task gây lỗi: '%s'\r\n", pcTaskName ? pcTaskName : "UNKNOWN");
+  printf("=======================================================\r\n\r\n");
+  while (1)
+  {
+    // Giữ CPU tại đây để lập trình viên quan sát log qua UART
+  }
 }
 
 void app_process_action(void) {}

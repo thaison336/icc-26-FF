@@ -244,16 +244,16 @@ bool somniguard_dsp_process_sample(somniguard_dsp_t *dsp, uint32_t raw_red, uint
     if (!dsp)
         return false;
     // 1. KIá»‚M TRA Há»ž SÃ NG HOáº¶C NHáº¤C NGÃ“N TAY
-    if (raw_ir < 40000 || raw_red < 40000)
-    {
-        somniguard_dsp_reset(dsp);
-        if (result)
-        {
-            memset(result, 0, sizeof(somniguard_dsp_result_t));
-            result->signal_valid = false;
-        }
-        return false;
-    }
+    //           if (raw_ir < 40000 || raw_red < 40000)
+    // {
+    //     somniguard_dsp_reset(dsp);
+    //     if (result)
+    //     {
+    //         memset(result, 0, sizeof(somniguard_dsp_result_t));
+    //         result->signal_valid = false;
+    //     }
+    //     return false;
+    // }
     float red_f = (float)raw_red;
     float ir_f = (float)raw_ir;
     // 2. KHá»žI Táº O Ä Æ¯á»œNG Ná»€N KHI Vá»ªA Ä áº¶T TAY

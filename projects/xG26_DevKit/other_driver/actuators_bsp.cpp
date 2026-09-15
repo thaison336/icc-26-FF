@@ -157,7 +157,7 @@ extern "C" void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
     // Tính chu kỳ nhịp rung dựa trên HAPTIC_BURST_RATE_HZ
     const uint32_t burst_rate = (HAPTIC_BURST_RATE_HZ == 0) ? 1 : HAPTIC_BURST_RATE_HZ;
     const uint32_t period_ms = 1000U / burst_rate;
-    
+
     // Tối ưu kích thích da: Thời gian ON chiếm ~80% dồn lực quán tính, OFF 20% tạo nhịp giật dứt khoát
     const uint32_t off_ms = (period_ms >= 500) ? 150 : ((period_ms >= 200) ? 60 : (period_ms / 4));
     const uint32_t on_ms = (period_ms > off_ms) ? (period_ms - off_ms) : (period_ms / 2);
@@ -165,7 +165,7 @@ extern "C" void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
     uint32_t elapsed_ms = 0;
     while (elapsed_ms < time)
     {
-        if (g_haptic_abort)          // Kiểm tra abort mỗi burst cycle (~100ms)
+        if (g_haptic_abort) // Kiểm tra abort mỗi burst cycle (~100ms)
         {
             actuators_set_haptic_pwm(0);
             return;
@@ -178,7 +178,6 @@ extern "C" void somniguard_haptic_motor(uint8_t ampHaptic, uint32_t time)
     }
     actuators_set_haptic_pwm(0);
 }
-
 
 #include "ble_notification_manager.h"
 
@@ -200,7 +199,7 @@ extern "C" void somniguard_led_boot_sequence(void)
     if (!s_actuators_initialized)
         actuators_bsp_init();
 
-    for (int i = 0; i < 20; i++)
+    for (int i = 0; i < 10; i++)
     {
         actuators_set_leds(true, false); // LED1 ON
         vTaskDelay(pdMS_TO_TICKS(120));

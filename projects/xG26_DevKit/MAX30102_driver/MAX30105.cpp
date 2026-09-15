@@ -157,10 +157,10 @@ bool MAX30105::begin(I2CBus *i2cBus, uint32_t i2cSpeed, uint8_t i2caddr)
 
   // Step 1: Initial Communication and Verification
   // Check that a MAX30105 is connected
-  if (readPartID() != MAX_30105_EXPECTEDPARTID)
+  uint8_t partID = readPartID();
+  printf("[DEBUG MAX30102] Read Part ID = 0x%02X (Expected: 0x15)\r\n", partID);
+  if (partID != MAX_30105_EXPECTEDPARTID)
   {
-    // Error -- Part ID read from MAX30105 does not match expected part ID.
-    // This may mean there is a physical connectivity problem (broken wire, unpowered, etc).
     return false;
   }
 
