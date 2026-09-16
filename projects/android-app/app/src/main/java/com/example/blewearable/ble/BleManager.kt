@@ -11,10 +11,16 @@ import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.example.blewearable.MainActivity
+import com.example.blewearable.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,6 +33,11 @@ import kotlinx.coroutines.launch
 
 class BleManager(private val context: Context) {
 
+    companion object {
+        const val BATTERY_ALERT_CHANNEL_ID = "ble_battery_alert_channel"
+        const val BATTERY_NOTIFICATION_ID = 9002
+    }
+
     val emergencyDispatcher = EmergencyDispatcher(context)
 
     private val bluetoothManager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
@@ -34,6 +45,21 @@ class BleManager(private val context: Context) {
 
     private val _connectionState = MutableStateFlow<BleConnectionState>(BleConnectionState.Disconnected)
     val connectionState: StateFlow<BleConnectionState> = _connectionState.asStateFlow()
+
+    private val _topFsmState = MutableStateFlow<SomniGuardTopFsmState>(SomniGuardTopFsmState.INACTIVE)
+    val topFsmState: StateFlow<SomniGuardTopFsmState> = _topFsmState.asStateFlow()
+
+    // Trạng thái pin kit SomniGuard (đo qua ADC và truyền qua BLE)
+    private val _batteryLevel = MutableStateFlow<Int?>(null)
+    val batteryLevel: StateFlow<Int?> = _batteryLevel.asStateFlow()
+
+    private val _batteryVoltageMv = MutableStateFlow<Int?>(null)
+    val batteryVoltageMv: StateFlow<Int?> = _batteryVoltageMv.asStateFlow()
+
+    private val _isBatteryLow = MutableStateFlow<Boolean>(false)
+    val isBatteryLow: StateFlow<Boolean> = _isBatteryLow.asStateFlow()
+
+    private var lastLowBatteryNotificationTime = 0L
 
     fun isBluetoothEnabled(): Boolean = bluetoothAdapter?.isEnabled == true
 
@@ -133,6 +159,72 @@ class BleManager(private val context: Context) {
         }
         activeGatt = null
         _connectionState.value = BleConnectionState.Disconnected
+        _topFsmState.value = SomniGuardTopFsmState.INACTIVE
+        _batteryLevel.value = null
+        _batteryVoltageMv.value = null
+        _isBatteryLow.value = false
+    }
+
+    private fun createBatteryNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                BATTERY_ALERT_CHANNEL_ID,
+                "Wearable Battery Alert",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Alert when SomniGuard wearable battery is low"
+                enableVibration(true)
+            }
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            manager?.createNotificationChannel(channel)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    fun showLowBatteryNotification(percent: Int, voltageMv: Int? = null, force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        // 5-minute cooldown between push notifications if battery remains low
+        if (!force && (now - lastLowBatteryNotificationTime < 5 * 60 * 1000L)) {
+            return
+        }
+        lastLowBatteryNotificationTime = now
+
+        createBatteryNotificationChannel()
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            1,
+            Intent(context, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
+        val voltageStr = if (voltageMv != null && voltageMv > 0) " (${String.format("%.2f", voltageMv / 1000f)}V)" else ""
+        val notification = NotificationCompat.Builder(context, BATTERY_ALERT_CHANNEL_ID)
+            .setContentTitle("⚠️ SomniGuard Battery Low ($percent%)")
+            .setContentText("SomniGuard battery is at $percent%$voltageStr. Please charge your device to maintain monitoring.")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        manager?.notify(BATTERY_NOTIFICATION_ID, notification)
+    }
+
+    fun dismissLowBatteryAlert() {
+        _isBatteryLow.value = false
+    }
+
+    fun setSimulatedBattery(percent: Int, voltageMv: Int) {
+        _batteryLevel.value = percent
+        _batteryVoltageMv.value = voltageMv
+        if (percent <= 20) {
+            _isBatteryLow.value = true
+            showLowBatteryNotification(percent, voltageMv, force = true)
+        } else {
+            _isBatteryLow.value = false
+        }
     }
 
     private val gattCallback = object : BluetoothGattCallback() {
@@ -146,6 +238,10 @@ class BleManager(private val context: Context) {
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 Log.d("BleManager", "GATT Disconnected")
                 _connectionState.value = BleConnectionState.Disconnected
+                _topFsmState.value = SomniGuardTopFsmState.INACTIVE
+                _batteryLevel.value = null
+                _batteryVoltageMv.value = null
+                _isBatteryLow.value = false
                 gatt.close()
                 activeGatt = null
             }
@@ -230,15 +326,27 @@ class BleManager(private val context: Context) {
         val rawStr = bytes.joinToString(" ") { String.format("%02X", it) }
         var asciiStr = String(bytes).trim()
 
-        // If 12-byte binary telemetry packet format from SomniGuard xG26 DevKit:
-        // [0..1]: seq_num, [2..3]: spo2_x100, [4..5]: hr_x10, [6..7]: motion_mg, [8]: posture, [9]: top_fsm, [10]: sub_fsm, [11]: bat
         var numericValue: Float = 0f
 
+        // 1. Gói Telemetry 12 bytes nhị phân từ SomniGuard xG26 DevKit:
+        // [0..1]: seq_num, [2..3]: spo2_x100, [4..5]: hr_x10, [6..7]: motion_mg, [8]: posture_flags, [9]: top_fsm, [10]: sub_fsm, [11]: bat
         if (bytes.size == 12) {
             val spo2Raw = (bytes[2].toInt() and 0xFF) or ((bytes[3].toInt() and 0xFF) shl 8)
             val hrRaw   = (bytes[4].toInt() and 0xFF) or ((bytes[5].toInt() and 0xFF) shl 8)
             val postureFlags = bytes[8].toInt() and 0xFF
             val isFingerAttached = (postureFlags and (1 shl 3)) != 0
+            val topFsmCode = bytes[9].toInt() and 0xFF
+            val battPercent = bytes[11].toInt() and 0xFF
+
+            _topFsmState.value = SomniGuardTopFsmState.fromCode(topFsmCode)
+            _batteryLevel.value = battPercent
+
+            if (battPercent in 1..20) {
+                _isBatteryLow.value = true
+                showLowBatteryNotification(battPercent, _batteryVoltageMv.value)
+            } else if (battPercent > 20) {
+                _isBatteryLow.value = false
+            }
 
             if (isFingerAttached) {
                 val spo2Val = spo2Raw / 100.0f
@@ -249,20 +357,72 @@ class BleManager(private val context: Context) {
                 numericValue = 0f
                 asciiStr = "NO FINGER"
             }
+        } 
+        // 2. Gói Event 8 bytes nhị phân (somniguard_ble_event_pkt_t):
+        // [0]: type, [1]: code, [2..3]: seq_num, [4..5]: param1, [6..7]: param2
+        else if (bytes.size == 8) {
+            val eventType = bytes[0].toInt() and 0xFF
+            val eventCode = bytes[1].toInt() and 0xFF
+            val param1 = (bytes[4].toInt() and 0xFF) or ((bytes[5].toInt() and 0xFF) shl 8)
+            val param2 = (bytes[6].toInt() and 0xFF) or ((bytes[7].toInt() and 0xFF) shl 8)
+
+            when (eventCode) {
+                0x31 -> { // SOMNIGUARD_BLE_EVT_CODE_BATTERY_LOW
+                    val battPercent = param1
+                    val battVoltageMv = param2
+                    _batteryLevel.value = battPercent
+                    _batteryVoltageMv.value = battVoltageMv
+                    _isBatteryLow.value = true
+                    asciiStr = "LOW BATT: $battPercent% (${battVoltageMv}mV)"
+                    showLowBatteryNotification(battPercent, battVoltageMv, force = true)
+                }
+                0x33 -> { // SOMNIGUARD_BLE_EVT_CODE_FSM_STATE_CHG
+                    _topFsmState.value = SomniGuardTopFsmState.fromCode(param2)
+                    asciiStr = "FSM CHG -> ${_topFsmState.value.stateName}"
+                }
+                0x21 -> { // SOMNIGUARD_BLE_EVT_CODE_FINGER_REMOVED
+                    _topFsmState.value = SomniGuardTopFsmState.OFF_FINGER_SUSPEND
+                    asciiStr = "NO FINGER"
+                }
+                0x22 -> { // SOMNIGUARD_BLE_EVT_CODE_FINGER_ATTACHED
+                    _topFsmState.value = SomniGuardTopFsmState.ACTIVE_MODE
+                    asciiStr = "FINGER ATTACHED"
+                }
+                0x11, 0x12 -> { // SOMNIGUARD_BLE_EVT_CODE_APNEA_WARNING (Gửi từ somniguard_BLE_control())
+                    _topFsmState.value = SomniGuardTopFsmState.DEEP_ANALYSIS
+                    asciiStr = "SOS" // Đánh dấu payload SOS chính thức
+                }
+            }
         } else {
             numericValue = asciiStr.toFloatOrNull() ?: 0f
+
+            // Suy luận FSM State từ chuỗi ASCII (nếu firmware gửi dạng string):
+            if (asciiStr.contains("NO FINGER", ignoreCase = true)) {
+                _topFsmState.value = SomniGuardTopFsmState.OFF_FINGER_SUSPEND
+            } else if (asciiStr.startsWith("SpO2:", ignoreCase = true)) {
+                if (_topFsmState.value == SomniGuardTopFsmState.INACTIVE || _topFsmState.value == SomniGuardTopFsmState.OFF_FINGER_SUSPEND) {
+                    _topFsmState.value = SomniGuardTopFsmState.NORMAL_SLEEP
+                }
+            }
         }
 
-        // Check if payload represents explicit emergency trigger (ONLY triggered by explicit "SOS" string)
+        // CHỈ ALARM khi nhận được đúng gói tin SOS phát từ somniguard_BLE_control() hoặc chuỗi "SOS":
+        // (Nếu chỉ đơn thuần chuyển sang DEEP ANALYSIS trong luồng Telemetry thì KHÔNG bật alarm)
         val isEmergency = asciiStr.equals("SOS", ignoreCase = true) ||
                 asciiStr.startsWith("SOS", ignoreCase = true) ||
                 asciiStr.contains("EMERGENCY", ignoreCase = true) ||
                 asciiStr.contains("HELP", ignoreCase = true) ||
                 numericValue == -999f
 
-        if (isEmergency) {
-            Log.w("BleManager", "Emergency SOS payload detected in BLE stream!")
-            emergencyDispatcher.triggerEmergency("Wearable SOS Button Pressed ($asciiStr)")
+        if (!isEmergency) {
+            // Khi thiết bị quay lại trạng thái an toàn / bình thường, mở lại cờ cho các sự cố tiếp theo
+            emergencyDispatcher.resetDismissedState()
+        } else {
+            // Chỉ kích hoạt chuông nếu chưa có alarm đang kêu VÀ người dùng chưa bấm nút dừng trong phiên SOS này
+            if (!emergencyDispatcher.isEmergencyActive.value && !emergencyDispatcher.isDismissedByUser) {
+                Log.w("BleManager", "🚨 Explicit Wearable SOS Received (somniguard_BLE_control) -> Triggering Phone Alarm!")
+                emergencyDispatcher.triggerEmergency("SomniGuard Wearable SOS Alert ($asciiStr)")
+            }
         }
 
         CoroutineScope(Dispatchers.IO).launch {

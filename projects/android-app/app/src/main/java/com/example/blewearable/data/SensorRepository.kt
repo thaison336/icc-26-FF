@@ -23,28 +23,46 @@ class SensorRepository(private val dao: SensorDataDao) {
         dao.clearAll()
     }
 
-    suspend fun getBatchTrendData(days: Int): List<BatchTrendSummary> {
-        val cutoffTime = System.currentTimeMillis() - (days * 24 * 60 * 60 * 1000L)
+    suspend fun getBatchTrendData(durationMs: Long): List<BatchTrendSummary> {
+        val cutoffTime = System.currentTimeMillis() - durationMs
         val readings = dao.getReadingsSince(cutoffTime)
 
         if (readings.isEmpty()) return emptyList()
 
-        val dateFormat = if (days <= 1) {
-            SimpleDateFormat("HH:00", Locale.getDefault())
-        } else {
-            SimpleDateFormat("MM/dd", Locale.getDefault())
+        // Chọn khoảng gom nhóm (bucketMs) và định dạng ngày phù hợp theo độ dài thời gian
+        val (bucketMs, dateFormatPattern) = when {
+            durationMs <= 2 * 60 * 1000L -> Pair(5 * 1000L, "HH:mm:ss")       // <= 2 phút: gom mỗi 5 giây
+            durationMs <= 10 * 60 * 1000L -> Pair(15 * 1000L, "HH:mm:ss")     // <= 10 phút: gom mỗi 15 giây
+            durationMs <= 60 * 60 * 1000L -> Pair(2 * 60 * 1000L, "HH:mm")    // <= 1 giờ: gom mỗi 2 phút
+            durationMs <= 6 * 60 * 60 * 1000L -> Pair(10 * 60 * 1000L, "HH:mm")// <= 6 giờ: gom mỗi 10 phút
+            durationMs <= 24 * 60 * 60 * 1000L -> Pair(60 * 60 * 1000L, "HH:00") // <= 24 giờ: gom mỗi 1 giờ
+            durationMs <= 7 * 24 * 60 * 60 * 1000L -> Pair(24 * 60 * 60 * 1000L, "MM/dd") // <= 7 ngày: gom mỗi ngày
+            else -> Pair(24 * 60 * 60 * 1000L, "MM/dd")                       // > 7 ngày: gom mỗi ngày
         }
 
-        val grouped = readings.groupBy { dateFormat.format(Date(it.timestamp)) }
+        val sdf = SimpleDateFormat(dateFormatPattern, Locale.getDefault())
 
-        return grouped.map { (timeLabel, items) ->
-            val avg = items.map { it.value }.average().toFloat()
+        val grouped = readings.groupBy { reading ->
+            (reading.timestamp / bucketMs) * bucketMs
+        }
+
+        return grouped.toSortedMap().map { (bucketTime, items) ->
+            val validItems = items.filter { it.value > 0f }
+            val avg = if (validItems.isNotEmpty()) {
+                validItems.map { it.value }.average().toFloat()
+            } else {
+                items.map { it.value }.average().toFloat()
+            }
             BatchTrendSummary(
-                timeLabel = timeLabel,
+                timeLabel = sdf.format(Date(bucketTime)),
                 avgValue = avg,
                 count = items.size
             )
         }
+    }
+
+    suspend fun getBatchTrendData(days: Int): List<BatchTrendSummary> {
+        return getBatchTrendData(days * 24 * 60 * 60 * 1000L)
     }
 
     suspend fun exportDataAsCsv(): String {

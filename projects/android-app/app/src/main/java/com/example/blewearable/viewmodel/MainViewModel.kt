@@ -6,10 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.example.blewearable.ble.BleConnectionState
 import com.example.blewearable.ble.BleDeviceModel
 import com.example.blewearable.ble.BleManager
+import com.example.blewearable.ble.SomniGuardTopFsmState
 import com.example.blewearable.data.AppDatabase
 import com.example.blewearable.data.BatchTrendSummary
+import com.example.blewearable.data.EmergencyContactManager
+import com.example.blewearable.data.LocationHelper
 import com.example.blewearable.data.SensorDataEntity
 import com.example.blewearable.data.SensorRepository
+import com.example.blewearable.data.TimeRangeUnit
+import com.example.blewearable.data.TrendTimeRange
+import com.example.blewearable.data.UserLocationInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,10 +25,36 @@ import kotlin.random.Random
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val bleManager = BleManager(application)
+    val locationHelper = LocationHelper(application)
+    val emergencyDispatcher = bleManager.emergencyDispatcher
+    val emergencyContactManager = emergencyDispatcher.contactManager
+
+    val isEmergencyActive: StateFlow<Boolean> = emergencyDispatcher.isEmergencyActive
+    val lastEmergencyLog: StateFlow<String?> = emergencyDispatcher.lastEmergencyLog
+
+    // Bedtime Location Caching State
+    private val _cachedLocation = MutableStateFlow<UserLocationInfo?>(emergencyContactManager.getCachedLocationInfo())
+    val cachedLocation: StateFlow<UserLocationInfo?> = _cachedLocation.asStateFlow()
+
+    private val _isLocationUpdating = MutableStateFlow(false)
+    val isLocationUpdating: StateFlow<Boolean> = _isLocationUpdating.asStateFlow()
+
+    private val _locationUpdateStatus = MutableStateFlow<String?>(null)
+    val locationUpdateStatus: StateFlow<String?> = _locationUpdateStatus.asStateFlow()
+
+    // App Theme State (Light vs Dark mode toggle)
+    private val _isDarkMode = MutableStateFlow(false)
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
     private val repository: SensorRepository
 
     val connectionState: StateFlow<BleConnectionState> = bleManager.connectionState
     val scannedDevices: StateFlow<List<BleDeviceModel>> = bleManager.scannedDevices
+    val topFsmState: StateFlow<SomniGuardTopFsmState> = bleManager.topFsmState
+
+    val batteryLevel: StateFlow<Int?> = bleManager.batteryLevel
+    val batteryVoltageMv: StateFlow<Int?> = bleManager.batteryVoltageMv
+    val isBatteryLow: StateFlow<Boolean> = bleManager.isBatteryLow
 
     val recentReadings = MutableStateFlow<List<SensorDataEntity>>(emptyList())
     val totalCount = MutableStateFlow(0)
@@ -30,7 +62,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _trendData = MutableStateFlow<List<BatchTrendSummary>>(emptyList())
     val trendData: StateFlow<List<BatchTrendSummary>> = _trendData.asStateFlow()
 
-    private val _selectedTimeFrame = MutableStateFlow(30) // 1 day, 7 days, 30 days (default to 30d)
+    private val _selectedTimeRange = MutableStateFlow<TrendTimeRange>(TrendTimeRange.RANGE_30_DAYS)
+    val selectedTimeRange: StateFlow<TrendTimeRange> = _selectedTimeRange.asStateFlow()
+
+    private val _selectedTimeFrame = MutableStateFlow(30) // Backward compatibility
     val selectedTimeFrame: StateFlow<Int> = _selectedTimeFrame.asStateFlow()
 
     private val _latestReading = MutableStateFlow<Float?>(null)
@@ -94,6 +129,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         refreshTrendData()
+
+        // Automatically fetch and cache phone's bedtime location when app opens
+        fetchAndCacheCurrentLocation(silent = true)
     }
 
     fun startScan() {
@@ -112,14 +150,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         bleManager.disconnect()
     }
 
-    fun setTimeFrame(days: Int) {
-        _selectedTimeFrame.value = days
+    fun setTimeRange(timeRange: TrendTimeRange) {
+        _selectedTimeRange.value = timeRange
+        if (timeRange.unit == TimeRangeUnit.DAYS) {
+            _selectedTimeFrame.value = timeRange.amount
+        }
         refreshTrendData()
+    }
+
+    fun setCustomTimeRange(amount: Int, unit: TimeRangeUnit) {
+        val shortLabel = when (unit) {
+            TimeRangeUnit.MINUTES -> "${amount}m"
+            TimeRangeUnit.HOURS -> "${amount}h"
+            TimeRangeUnit.DAYS -> "${amount}d"
+        }
+        val customRange = TrendTimeRange(amount, unit, shortLabel)
+        _selectedTimeRange.value = customRange
+        refreshTrendData()
+    }
+
+    fun setTimeFrame(days: Int) {
+        val matchingPreset = when (days) {
+            1 -> TrendTimeRange.RANGE_24_HOURS
+            7 -> TrendTimeRange.RANGE_7_DAYS
+            30 -> TrendTimeRange.RANGE_30_DAYS
+            else -> TrendTimeRange(days, TimeRangeUnit.DAYS, "${days}d")
+        }
+        setTimeRange(matchingPreset)
     }
 
     fun refreshTrendData() {
         viewModelScope.launch {
-            _trendData.value = repository.getBatchTrendData(_selectedTimeFrame.value)
+            _trendData.value = repository.getBatchTrendData(_selectedTimeRange.value.durationMs)
         }
     }
 
@@ -145,15 +207,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    val emergencyDispatcher = bleManager.emergencyDispatcher
-    val emergencyContactManager = com.example.blewearable.data.EmergencyContactManager(application)
+    fun fetchAndCacheCurrentLocation(silent: Boolean = false, onFinished: ((Boolean) -> Unit)? = null) {
+        if (!locationHelper.hasLocationPermission()) {
+            if (!silent) _locationUpdateStatus.value = "Location (GPS) permission is not granted."
+            onFinished?.invoke(false)
+            return
+        }
 
-    val isEmergencyActive: StateFlow<Boolean> = emergencyDispatcher.isEmergencyActive
-    val lastEmergencyLog: StateFlow<String?> = emergencyDispatcher.lastEmergencyLog
+        viewModelScope.launch {
+            _isLocationUpdating.value = true
+            try {
+                val locInfo = locationHelper.fetchCurrentOrLastLocation()
+                if (locInfo != null) {
+                    emergencyContactManager.saveCachedLocation(locInfo)
+                    _cachedLocation.value = locInfo
+                    _locationUpdateStatus.value = "GPS location updated successfully."
+                    onFinished?.invoke(true)
+                } else {
+                    if (!silent) _locationUpdateStatus.value = "Unable to obtain GPS fix. Please ensure Location is enabled."
+                    onFinished?.invoke(false)
+                }
+            } catch (e: Exception) {
+                if (!silent) _locationUpdateStatus.value = "Location error: ${e.message}"
+                onFinished?.invoke(false)
+            } finally {
+                _isLocationUpdating.value = false
+            }
+        }
+    }
 
-    // App Theme State (Light vs Dark mode toggle)
-    private val _isDarkMode = MutableStateFlow(false)
-    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+    fun saveLocationSettings(manualAddress: String, locationMode: String) {
+        emergencyContactManager.manualAddress = manualAddress
+        emergencyContactManager.locationPreferenceMode = locationMode
+    }
+
+    fun getEmergencySmsPreview(): String {
+        return emergencyDispatcher.buildEmergencySmsMessage("Manual Test SOS Alert")
+    }
 
     fun toggleDarkMode(enabled: Boolean) {
         _isDarkMode.value = enabled
@@ -172,11 +262,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun triggerTestEmergency() {
-        emergencyDispatcher.triggerEmergency("Manual Test SOS Triggered from App")
+        emergencyDispatcher.triggerEmergency("Manual Test SOS Triggered from App", force = true)
     }
 
     fun stopEmergencyAlert() {
         emergencyDispatcher.stopEmergencyAlert()
+    }
+
+    fun dismissLowBatteryAlert() {
+        bleManager.dismissLowBatteryAlert()
+    }
+
+    fun simulateBattery(percent: Int, voltageMv: Int) {
+        bleManager.setSimulatedBattery(percent, voltageMv)
     }
 
     // Helper method to insert 30 days of mock simulated PPG health readings

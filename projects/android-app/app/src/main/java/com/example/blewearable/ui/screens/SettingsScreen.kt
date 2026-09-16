@@ -13,6 +13,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,9 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -47,6 +51,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -55,6 +60,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import com.example.blewearable.data.EmergencyContactManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -80,6 +86,10 @@ fun SettingsScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     val isDarkMode by viewModel.isDarkMode.collectAsState()
 
+    val cachedLocation by viewModel.cachedLocation.collectAsState()
+    val isLocationUpdating by viewModel.isLocationUpdating.collectAsState()
+    val locationUpdateStatus by viewModel.locationUpdateStatus.collectAsState()
+
     var primaryContactInput by remember {
         mutableStateOf(viewModel.emergencyContactManager.primaryContact)
     }
@@ -90,6 +100,14 @@ fun SettingsScreen(viewModel: MainViewModel) {
         mutableStateOf(viewModel.emergencyContactManager.customSosMessage)
     }
     var isSavedNoticeVisible by remember { mutableStateOf(false) }
+
+    var manualAddressInput by remember {
+        mutableStateOf(viewModel.emergencyContactManager.manualAddress)
+    }
+    var locationModeSelection by remember {
+        mutableStateOf(viewModel.emergencyContactManager.locationPreferenceMode)
+    }
+    var isLocationSavedNoticeVisible by remember { mutableStateOf(false) }
 
     var refreshTrigger by remember { mutableStateOf(0) }
 
@@ -107,9 +125,11 @@ fun SettingsScreen(viewModel: MainViewModel) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             list.add("Bluetooth Scan" to isPermissionGranted(Manifest.permission.BLUETOOTH_SCAN))
             list.add("Bluetooth Connect" to isPermissionGranted(Manifest.permission.BLUETOOTH_CONNECT))
-        } else {
-            list.add("Location Access" to isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION))
         }
+
+        val hasLocation = isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION) ||
+                isPermissionGranted(Manifest.permission.ACCESS_COARSE_LOCATION)
+        list.add("GPS Location Access" to hasLocation)
 
         list.add("Emergency SMS" to isPermissionGranted(Manifest.permission.SEND_SMS))
         list.add("Phone Calling" to isPermissionGranted(Manifest.permission.CALL_PHONE))
@@ -128,9 +148,9 @@ fun SettingsScreen(viewModel: MainViewModel) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             list.add(Manifest.permission.BLUETOOTH_SCAN)
             list.add(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            list.add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
+        list.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        list.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         list.add(Manifest.permission.SEND_SMS)
         list.add(Manifest.permission.CALL_PHONE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -288,6 +308,278 @@ fun SettingsScreen(viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "✓ Emergency contacts saved successfully!",
+                        color = StatusGreen,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Emergency Location Settings Card (Bedtime GPS Caching & Manual Address)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp))
+                    .padding(16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = "Emergency Location",
+                        tint = PrimaryBlue,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Emergency Bedtime Location",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "When you open the app before sleep, your phone's GPS location is automatically cached. You can also enter an exact manual address (apartment, room, hotel) to include in emergency SOS messages.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 1. Manual Address Input
+                OutlinedTextField(
+                    value = manualAddressInput,
+                    onValueChange = { manualAddressInput = it },
+                    label = { Text("Exact Current Address (Manual Entry)") },
+                    placeholder = { Text("e.g., Apt 302, Building S1, Sunrise Riverside, Dist 7") },
+                    singleLine = false,
+                    maxLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                        focusedLabelColor = PrimaryBlue,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 2. Cached GPS Location Display & Actions
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.MyLocation,
+                                    contentDescription = null,
+                                    tint = if (cachedLocation != null) StatusGreen else StatusOrange,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Last Cached GPS Location",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (cachedLocation != null) StatusGreen.copy(alpha = 0.15f) else StatusOrange.copy(alpha = 0.15f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = if (cachedLocation != null) "Recorded" else "No GPS Fix",
+                                    color = if (cachedLocation != null) StatusGreen else StatusOrange,
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        if (cachedLocation != null) {
+                            val loc = cachedLocation!!
+                            Text(
+                                text = "Coordinates: ${String.format(java.util.Locale.US, "%.6f, %.6f", loc.latitude, loc.longitude)}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (!loc.address.isNullOrBlank()) {
+                                Text(
+                                    text = "Address: ${loc.address}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                                )
+                            }
+                            val dateStr = try {
+                                java.text.SimpleDateFormat("HH:mm:ss dd/MM/yyyy", java.util.Locale.getDefault())
+                                    .format(java.util.Date(loc.timestamp))
+                            } catch (e: Exception) { "" }
+                            Text(
+                                text = "Recorded: $dateStr (Auto at bedtime)",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        } else {
+                            Text(
+                                text = "No GPS location cached yet. Tap button below to fetch current location.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.fetchAndCacheCurrentLocation() },
+                                enabled = !isLocationUpdating,
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                if (isLocationUpdating) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Locating...", style = MaterialTheme.typography.labelMedium)
+                                } else {
+                                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Refresh GPS", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+
+                            if (cachedLocation != null) {
+                                OutlinedButton(
+                                    onClick = {
+                                        try {
+                                            val mapIntent = Intent(Intent.ACTION_VIEW, Uri.parse(cachedLocation!!.mapsUrl)).apply {
+                                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                            }
+                                            context.startActivity(mapIntent)
+                                        } catch (e: Exception) {
+                                            android.widget.Toast.makeText(context, "Cannot open Google Maps", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(8.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Default.Map, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("View on Maps", style = MaterialTheme.typography.labelMedium, color = PrimaryBlue)
+                                }
+                            }
+                        }
+
+                        if (locationUpdateStatus != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = locationUpdateStatus!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (locationUpdateStatus!!.contains("success", ignoreCase = true)) StatusGreen else StatusOrange
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 3. Choice of Mode in SOS SMS
+                Text(
+                    text = "Emergency SMS Location Format:",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val modes = listOf(
+                    EmergencyContactManager.MODE_BOTH to "Both (Manual Address + GPS Maps Link - Recommended)",
+                    EmergencyContactManager.MODE_AUTO_GPS to "Automatic GPS Coordinates & Maps Link Only",
+                    EmergencyContactManager.MODE_MANUAL to "Manual Address Only"
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    modes.forEach { (modeCode, label) ->
+                        val isSelected = locationModeSelection == modeCode
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) PrimaryBlue.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                .border(1.dp, if (isSelected) PrimaryBlue else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                                .clickable { locationModeSelection = modeCode }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.LocationOn,
+                                    contentDescription = null,
+                                    tint = if (isSelected) PrimaryBlue else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (isSelected) PrimaryBlue else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Button(
+                    onClick = {
+                        viewModel.saveLocationSettings(manualAddressInput, locationModeSelection)
+                        isLocationSavedNoticeVisible = true
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Save", modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save Location Settings", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                }
+
+                if (isLocationSavedNoticeVisible) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "✓ Emergency location settings saved successfully!",
                         color = StatusGreen,
                         style = MaterialTheme.typography.bodyMedium
                     )

@@ -28,7 +28,7 @@ class EmergencyDispatcher(private val context: Context) {
     // Toggle for sound alert (Can be toggled in testing settings)
     var enableSoundAlert: Boolean = true
 
-    private val contactManager = EmergencyContactManager(context)
+    val contactManager = EmergencyContactManager(context)
     private var ringtone: Ringtone? = null
     private var vibrator: Vibrator? = null
 
@@ -38,8 +38,27 @@ class EmergencyDispatcher(private val context: Context) {
     private val _lastEmergencyLog = MutableStateFlow<String?>(null)
     val lastEmergencyLog: StateFlow<String?> = _lastEmergencyLog.asStateFlow()
 
+    var isDismissedByUser: Boolean = false
+        private set
+
+    fun resetDismissedState() {
+        if (isDismissedByUser) {
+            Log.d("EmergencyDispatcher", "Resetting emergency dismissed flag as state returned to normal.")
+            isDismissedByUser = false
+        }
+    }
+
     @SuppressLint("MissingPermission")
-    fun triggerEmergency(triggerReason: String = "Wearable SOS Button Pressed") {
+    fun triggerEmergency(triggerReason: String = "Wearable SOS Button Pressed", force: Boolean = false) {
+        if (isDismissedByUser && !force) {
+            Log.d("EmergencyDispatcher", "Emergency trigger skipped because user already stopped the alert for this session.")
+            return
+        }
+        if (_isEmergencyActive.value && !force) {
+            return
+        }
+
+        isDismissedByUser = false
         Log.w("EmergencyDispatcher", "🚨 EMERGENCY TRIGGERED: $triggerReason")
         _isEmergencyActive.value = true
         _lastEmergencyLog.value = "🚨 Emergency Alert Active: $triggerReason"
@@ -64,6 +83,10 @@ class EmergencyDispatcher(private val context: Context) {
                     am.setStreamVolume(AudioManager.STREAM_ALARM, maxVol, 0)
                 }
 
+                // Stop any previous instance before starting new
+                ringtone?.stop()
+                ringtone = null
+
                 val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
                     ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
 
@@ -77,6 +100,10 @@ class EmergencyDispatcher(private val context: Context) {
             } else {
                 Log.d("EmergencyDispatcher", "Sound alert is disabled - running in silent vibration-only mode.")
             }
+
+            // Stop any previous vibration before starting new
+            vibrator?.cancel()
+            vibrator = null
 
             // Vibration pattern: [delay, vibrate, sleep, vibrate, ...]
             val pattern = longArrayOf(0, 1000, 500, 1000, 500, 1000)
@@ -103,14 +130,32 @@ class EmergencyDispatcher(private val context: Context) {
 
     fun stopEmergencyAlert() {
         try {
-            ringtone?.stop()
+            isDismissedByUser = true
+            _isEmergencyActive.value = false
+
+            ringtone?.let {
+                if (it.isPlaying) {
+                    it.stop()
+                }
+            }
             ringtone = null
+
             vibrator?.cancel()
             vibrator = null
-            _isEmergencyActive.value = false
-            Log.d("EmergencyDispatcher", "Emergency alert stopped by user.")
+
+            Log.d("EmergencyDispatcher", "Emergency alert stopped by user (dismissed flag set to prevent BLE stream re-trigger).")
         } catch (e: Exception) {
             Log.e("EmergencyDispatcher", "Error stopping alert: ${e.message}", e)
+        }
+    }
+
+    fun buildEmergencySmsMessage(reason: String): String {
+        val baseMessage = "${contactManager.customSosMessage}\n[Reason: $reason]"
+        val locationInfo = contactManager.formatLocationForSms()
+        return if (locationInfo.isNotBlank()) {
+            "$baseMessage\n$locationInfo"
+        } else {
+            baseMessage
         }
     }
 
@@ -121,7 +166,7 @@ class EmergencyDispatcher(private val context: Context) {
             return
         }
 
-        val message = "${contactManager.customSosMessage}\n[Reason: $reason]"
+        val message = buildEmergencySmsMessage(reason)
 
         for (phoneNumber in contacts) {
             try {

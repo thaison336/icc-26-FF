@@ -44,10 +44,9 @@ fun PermissionHandler(
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             list.add(Manifest.permission.BLUETOOTH_SCAN)
             list.add(Manifest.permission.BLUETOOTH_CONNECT)
-        } else {
-            list.add(Manifest.permission.ACCESS_FINE_LOCATION)
-            list.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
+        list.add(Manifest.permission.ACCESS_FINE_LOCATION)
+        list.add(Manifest.permission.ACCESS_COARSE_LOCATION)
         list.add(Manifest.permission.SEND_SMS)
         list.add(Manifest.permission.CALL_PHONE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -90,12 +89,12 @@ fun PermissionHandler(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Bluetooth & Emergency SOS Permissions Required",
+                    text = "Bluetooth, GPS Location & Safety Permissions Required",
                     style = MaterialTheme.typography.titleLarge
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "This app requires Bluetooth, Notification, SMS, and Phone Call permissions to listen for wearable emergency triggers, ring the alarm, send SOS SMS, and place automatic emergency calls.",
+                    text = "This app requires Bluetooth, Location (GPS), Notification, SMS, and Phone Call permissions to monitor wearable sensors, cache your bedtime location for emergency services, ring alarms, send SOS SMS, and place automatic emergency calls.",
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(modifier = Modifier.height(24.dp))

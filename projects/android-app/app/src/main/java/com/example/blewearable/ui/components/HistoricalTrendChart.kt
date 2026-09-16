@@ -96,6 +96,8 @@ fun HistoricalTrendChart(
 
                 val linePath = Path()
 
+                val skipLabelStep = if (trendData.size > 8) (trendData.size / 6).coerceAtLeast(1) else 1
+
                 trendData.forEachIndexed { index, item ->
                     val xCenter = (index * stepX) + (stepX / 2f)
                     val barHeight = (item.avgValue / maxValue) * chartHeight
@@ -108,7 +110,7 @@ fun HistoricalTrendChart(
                         ),
                         topLeft = Offset(xCenter - (barWidth / 2f), yTop),
                         size = Size(barWidth, barHeight),
-                        cornerRadius = CornerRadius(8f, 8f)
+                        cornerRadius = CornerRadius(6f, 6f)
                     )
 
                     // Path for Trend Line
@@ -118,22 +120,25 @@ fun HistoricalTrendChart(
                         linePath.lineTo(xCenter, yTop)
                     }
 
-                    // Draw X-axis Time Label
-                    val labelResult = textMeasurer.measure(
-                        text = item.timeLabel,
-                        style = TextStyle(color = textColor, fontSize = 10.sp)
-                    )
-                    drawText(
-                        textLayoutResult = labelResult,
-                        topLeft = Offset(xCenter - (labelResult.size.width / 2f), height - 28f)
-                    )
+                    // Draw X-axis Time Label (skip crowded labels)
+                    if (index % skipLabelStep == 0 || index == trendData.size - 1) {
+                        val labelResult = textMeasurer.measure(
+                            text = item.timeLabel,
+                            style = TextStyle(color = textColor, fontSize = 9.sp)
+                        )
+                        val textX = (xCenter - (labelResult.size.width / 2f)).coerceIn(0f, width - labelResult.size.width)
+                        drawText(
+                            textLayoutResult = labelResult,
+                            topLeft = Offset(textX, height - 26f)
+                        )
+                    }
                 }
 
                 // Draw connecting Trend Line overlay
                 drawPath(
                     path = linePath,
                     color = PrimaryBlue.copy(alpha = 0.8f),
-                    style = Stroke(width = 4f)
+                    style = Stroke(width = 3.5f)
                 )
             }
         }
