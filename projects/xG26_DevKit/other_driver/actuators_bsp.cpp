@@ -17,7 +17,7 @@ static uint32_t s_haptic_pwm_top = PWM_TOP_VALUE;
 
 // Flag hủy rung: set = true để abort vòng lặp haptic đang chạy ngay lập tức
 static volatile bool g_haptic_abort = false;
-
+static bool s_timer0_clock_enabled = false;
 void actuators_bsp_init(void)
 {
     if (s_actuators_initialized)
@@ -43,7 +43,8 @@ void actuators_bsp_init(void)
     GPIO->TIMERROUTE[0].ROUTEEN = GPIO_TIMER_ROUTEEN_CC0PEN;
     GPIO->TIMERROUTE[0].CC0ROUTE = (gpioPortA << _GPIO_TIMER_CC0ROUTE_PORT_SHIFT) | (7 << _GPIO_TIMER_CC0ROUTE_PIN_SHIFT);
     TIMER_CompareSet(TIMER0, 0, 0); // Mặc định tắt (0% duty)
-    TIMER_Enable(TIMER0, true);
+    TIMER_Enable(TIMER0, false);
+    CMU_ClockEnable(cmuClock_TIMER0, false);
     s_actuators_initialized = true;
     printf("[ACTUATORS BSP] Hardware Actuators Initialized (Dual LED: PC08, PC09 | Haptic Motor PWM: PA07).\r\n");
 }
@@ -78,9 +79,26 @@ void actuators_set_haptic_pwm(uint8_t ampHaptic)
 
     if (ampHaptic == 0)
     {
-        TIMER_CompareBufSet(TIMER0, 0, 0);
+        // Chỉ ghi thanh ghi TIMER0 nếu clock ĐANG BẬT
+        if (s_timer0_clock_enabled)
+        {
+            TIMER_CompareBufSet(TIMER0, 0, 0);
+            TIMER_Enable(TIMER0, false);
+            CMU_ClockEnable(cmuClock_TIMER0, false);
+            s_timer0_clock_enabled = false;
+        }
+        // Clock đã tắt: TUYỆT ĐỐI KHÔNG chạm vào thanh ghi TIMER0 để tránh BusFault
+        GPIO_PinModeSet(VIB_MOTOR_PORT, VIB_MOTOR_PIN, gpioModePushPull, 0);
         return;
     }
+
+    // Khi cần rung (ampHaptic > 0): Cấp clock TRƯỚC rồi mới bật TIMER0
+    if (!s_timer0_clock_enabled)
+    {
+        CMU_ClockEnable(cmuClock_TIMER0, true);
+        s_timer0_clock_enabled = true;
+    }
+    TIMER_Enable(TIMER0, true);
 
     // Scale chuẩn từ dải 0..255 sang dải 0..s_haptic_pwm_top để đạt đúng 100% công suất motor
     uint32_t compare_val = ((uint32_t)ampHaptic * s_haptic_pwm_top) / 255U;

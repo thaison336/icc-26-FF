@@ -51,7 +51,7 @@
 static SensorHub mySensorHub;
 static somniguard_fsm_t myFSM;
 
-#define USE_MOCK_TENSOR_BUFFER 1
+#define USE_MOCK_TENSOR_BUFFER 0
 
 #if USE_MOCK_TENSOR_BUFFER
 // Hàm sinh dữ liệu Tensor Buffer giả lập:
@@ -99,7 +99,8 @@ static void get_mock_tensor_metrics(somniguard_fsm_t *fsm,
     // Inference
     float elapsed_sec = (float)(cycle_ms - 500000) / 1000.0f;
     float spo2_drop = (elapsed_sec / 100.0f) * 15.5f; // Drop 15.5% trong 100s
-    *out_spo2 = 97.5f - spo2_drop;
+                                                      // *out_spo2 = 97.5f - spo2_drop;
+    *out_spo2 = 97.5f;
     *out_bpm = 72.0f + (elapsed_sec * 0.8f); // Nhịp tim tăng
     *out_motion = 0.008f;
   }
@@ -156,9 +157,7 @@ void DataProcessingTask(void *pvParameters)
       rawIMU.gx = data.gx;
       rawIMU.gy = data.gy;
       rawIMU.gz = data.gz;
-
-      // printf("PPG[R:%lu, IR:%lu] | ACC[%.2f, %.2f, %.2f]g | GYR[%.1f, %.1f,
-      // %.1f]dps\r\n",
+      // printf("PPG[R:%lu, IR:%lu] | ACC[%.2f, %.2f, %.2f]g | GYR[%.1f, %.1f, %.1f]dps\r\n",
       //        data.ppg_red, data.ppg_ir,
       //        data.ax, data.ay, data.az,
       //        data.gx, data.gy, data.gz);
@@ -637,8 +636,7 @@ void app_init(void)
   // 1. Task Thu thập & Xử lý Dữ liệu Cảm biến
   xTaskCreate(DataProcessingTask, "DataProc", 512, &myFSM, tskIDLE_PRIORITY + 3,
               NULL);
-  vTaskDelay(pdMS_TO_TICKS(
-      50)); // Chờ task in xong startup log trước khi tạo task tiếp theo
+  vTaskDelay(pdMS_TO_TICKS(50));
 
   // 2. Task Bộ Não FSM Chính (Top-Level FSM Runner - 100ms)
   xTaskCreate(somniguard_fsm_task, "FsmMain", 512, &myFSM, tskIDLE_PRIORITY + 2,
@@ -646,22 +644,21 @@ void app_init(void)
   vTaskDelay(pdMS_TO_TICKS(50));
 
   // 3. Sub-FSM Task cho Active Mode
-  xTaskCreate(somniguard_active_mode_task, "FsmActive", 384, &myFSM,
+  xTaskCreate(somniguard_active_mode_task, "FsmActive", 512, &myFSM,
               tskIDLE_PRIORITY + 1, NULL);
   vTaskDelay(pdMS_TO_TICKS(50));
 
   // 4. Sub-FSM Task cho Normal Sleep
-  xTaskCreate(somniguard_normal_sleep_task, "FsmSleep", 384, &myFSM,
+  xTaskCreate(somniguard_normal_sleep_task, "FsmSleep", 512, &myFSM,
               tskIDLE_PRIORITY + 1, NULL);
   vTaskDelay(pdMS_TO_TICKS(50));
 
   // 5. Sub-FSM Task cho Deep Analysis / Can thiệp
-  xTaskCreate(somniguard_deep_analysis_task, "FsmDeep", 384, &myFSM,
+  xTaskCreate(somniguard_deep_analysis_task, "FsmDeep", 512, &myFSM,
               tskIDLE_PRIORITY + 1, NULL);
   vTaskDelay(pdMS_TO_TICKS(50));
 
-  // // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý (Commented for low power
-  // // profiling)
+  // 6. Task Log Trạng Thái FSM & Thông Số Sinh Lý
   // xTaskCreate(FsmLoggerTask, "FsmLogger", 1024, &myFSM, tskIDLE_PRIORITY + 1,
   //             NULL);
   // vTaskDelay(pdMS_TO_TICKS(50));

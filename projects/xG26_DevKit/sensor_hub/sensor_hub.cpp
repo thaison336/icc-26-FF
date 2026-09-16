@@ -25,7 +25,7 @@ bool initMax30102(MAX30102_manager &MAX30102Sensor, int samplerate)
         return false;
     }
 
-    MAX30102Sensor.driver().setup(0x1F, MAX30102_AVERAGING, 2, samplerate * MAX30102_AVERAGING, 411, 4096);
+    MAX30102Sensor.driver().setup(0x1F, MAX30102_AVERAGING, 2, samplerate * MAX30102_AVERAGING, 215, 4096);
     MAX30102Sensor.driver().setFIFOAlmostFull(7);
     MAX30102Sensor.driver().enableAFULL();
     // MAX30102Sensor.driver().enableDATARDY(); // Bật ngắt DATA READY (50Hz: mỗi 20ms tạo 1 xung ngắt trên chân INT)
@@ -159,8 +159,8 @@ void SensorHub::agcAmplitudeLed()
     const uint32_t HIGH_SATURATION = (uint32_t)(0.90f * full_scale_adc);
 
     // Khá»Ÿi táº¡o dÃ²ng LED ban Ä‘áº§u qua manager queue (interrupt task sáº½ ghi xuá»‘ng hardware)
-    uint8_t current_red_amp = 110;
-    uint8_t current_ir_amp = 110;
+    uint8_t current_red_amp = 55;
+    uint8_t current_ir_amp = 55;
     m_max30102.setPulseAmplitudeRed(current_red_amp);
     m_max30102.setPulseAmplitudeIR(current_ir_amp);
     // Xả FIFO qua manager (interrupt task xử lý) để bắt đầu từ trạng thái sạch

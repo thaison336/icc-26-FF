@@ -49,7 +49,7 @@ void battery_monitor_init(void)
   IADC_reset(IADC0);
 
   IADC_Init_t init = IADC_INIT_DEFAULT;
-  init.warmup = iadcWarmupNormal;                                               // Giữ ADC core và tham chiếu nội 1.21V luôn sẵn sàng, ngăn sụt áp Vref về VDDX
+  init.warmup = iadcWarmupKeepInStandby;                                        // ADC o che do Standby giua cac lan do 30s, tiet kiem nang luong
   init.srcClkPrescale = IADC_calcSrcClkPrescale(IADC0, 20000000UL, 20000000UL); // 0 (1:1 với FSRCO 20MHz)
   init.timebase = IADC_calcTimebase(IADC0, 20000000UL);                         // Chuẩn hóa 1us theo FSRCO 20MHz (timebase = 19)
 
@@ -115,20 +115,20 @@ void battery_monitor_sample(void)
   // Nhân với tỉ lệ phân áp R1/R2 để ra điện áp pin thực tế: Vbat = Vadc * 2.0
   uint32_t vbat_sample_mv = (uint32_t)(vadc_mv * BATT_DIVIDER_RATIO);
 
-  if (vbat_sample_mv < BATT_VOLTAGE_DISCONNECTED_MV)
-  {
-    printf("[BATT DEBUG] Raw: %4lu | Vadc: %4lu mV | Vbat: %4lu mV [CFG: 0x%08lx] (CHUA NOI PIN / FLOATING)\r\n",
-           raw_code, vadc_mv, vbat_sample_mv, IADC0->CFG[0].CFG);
-    printf("CFG0: 0x%08lx | CFG1: 0x%08lx | SINGLE: 0x%08lx\r\n",
-           IADC0->CFG[0].CFG, IADC0->CFG[1].CFG, IADC0->SINGLE);
-  }
-  else
-  {
-    printf("[BATT DEBUG] Raw: %4lu | Vadc: %4lu mV | Vbat: %4lu mV | Batt: %3u%% [CFG: 0x%08lx]\r\n",
-           raw_code, vadc_mv, vbat_sample_mv, battery_monitor_get_percent(), IADC0->CFG[0].CFG);
-    printf("CFG0: 0x%08lx | CFG1: 0x%08lx | SINGLE: 0x%08lx\r\n",
-           IADC0->CFG[0].CFG, IADC0->CFG[1].CFG, IADC0->SINGLE);
-  }
+  // if (vbat_sample_mv < BATT_VOLTAGE_DISCONNECTED_MV)
+  // {
+  //   printf("[BATT DEBUG] Raw: %4lu | Vadc: %4lu mV | Vbat: %4lu mV [CFG: 0x%08lx] (CHUA NOI PIN / FLOATING)\r\n",
+  //          raw_code, vadc_mv, vbat_sample_mv, IADC0->CFG[0].CFG);
+  //   printf("CFG0: 0x%08lx | CFG1: 0x%08lx | SINGLE: 0x%08lx\r\n",
+  //          IADC0->CFG[0].CFG, IADC0->CFG[1].CFG, IADC0->SINGLE);
+  // }
+  // else
+  // {
+  //   printf("[BATT DEBUG] Raw: %4lu | Vadc: %4lu mV | Vbat: %4lu mV | Batt: %3u%% [CFG: 0x%08lx]\r\n",
+  //          raw_code, vadc_mv, vbat_sample_mv, battery_monitor_get_percent(), IADC0->CFG[0].CFG);
+  //   printf("CFG0: 0x%08lx | CFG1: 0x%08lx | SINGLE: 0x%08lx\r\n",
+  //          IADC0->CFG[0].CFG, IADC0->CFG[1].CFG, IADC0->SINGLE);
+  // }
 
   // Đưa mẫu vào bộ đệm trung bình trượt
   s_sample_history[s_history_idx] = vbat_sample_mv;
