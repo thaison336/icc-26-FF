@@ -1,0 +1,39 @@
+
+--- Monitoring Summary ---
+End Time: 2026-07-20 11:43:37.658946
+Total time elapsed: 0.11 hours.
+Total anomalies (Low Freq): 0
+Total timeouts (Hangs): 68
+=========================================
+
+=========================================
+--- Monitoring Started at 2026-07-20 11:43:46.752910 ---
+
+--- Monitoring Summary ---
+End Time: 2026-07-20 11:44:14.853319
+Total time elapsed: 0.01 hours.
+Total anomalies (Low Freq): 0
+Total timeouts (Hangs): 0
+=========================================
+
+=========================================
+--- Monitoring Started at 2026-07-20 11:44:20.401440 ---
+
+--- Monitoring Summary ---
+End Time: 2026-07-20 15:13:02.920198
+Total time elapsed: 3.48 hours.
+Total anomalies (Low Freq): 0
+Total timeouts (Hangs): 0
+=========================================
+
+=========================================
+--- Monitoring Started at 2026-07-20 15:19:33.177264 ---
+
+--- Monitoring Summary ---
+End Time: 2026-07-20 15:41:16.080632
+Total time elapsed: 0.36 hours.
+Total anomalies (Low Freq): 0
+Total timeouts (Hangs): 0
+Maximum Drift (MAX - IMU): -28
+Minimum Drift (MAX - IMU): -117
+=========================================

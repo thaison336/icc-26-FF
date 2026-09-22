@@ -1,0 +1,112 @@
+{
+  "data": {
+    "npz_path": "somniguard_train_dataset.npz",
+    "data_key": "X",
+    "label_key": "Y",
+    "test_fraction": 0.2,
+    "seed": 42
+  },
+  "channels": {
+    "total_channels": 28,
+    "spo2_idx": 0,
+    "bpm_idx": 1,
+    "ir_start_idx": 2,
+    "ir_end_idx": 27,
+    "motion_idx": 27,
+    "frame_samples": 25,
+    "window_frames": 60
+  },
+  "label": {
+    "hard_label_threshold": 0.5,
+    "positive_class_name": "Abnormal"
+  },
+  "compression": {
+    "name": "stat7",
+    "features": [
+      "mean",
+      "std",
+      "min",
+      "max",
+      "rms",
+      "skew",
+      "kurtosis"
+    ]
+  },
+  "model_variant": {
+    "conv_filters": [
+      16,
+      32,
+      32
+    ],
+    "kernel_sizes": [
+      5,
+      5,
+      3
+    ],
+    "strides": [
+      1,
+      1,
+      1
+    ],
+    "pool_after_layer": [
+      true,
+      true,
+      false
+    ],
+    "dense_units": [
+      32
+    ],
+    "dropout": 0.3
+  },
+  "training": {
+    "epochs": 30,
+    "batch_size": 32,
+    "validation_split": 0.1
+  },
+  "normalization": {
+    "mean": [
+      -1.0107890367507935,
+      462.87542724609375,
+      -713.2999267578125,
+      734.8062744140625,
+      710.6092529296875,
+      0.09494941681623459,
+      -0.794873833656311,
+      94.79252624511719,
+      86.17684936523438,
+      0.006570133380591869
+    ],
+    "std": [
+      655.80126953125,
+      297.2281494140625,
+      796.1035766601562,
+      708.5175170898438,
+      477.2164001464844,
+      0.6425100564956665,
+      1.0446852445602417,
+      3.6999270915985107,
+      17.4013614654541,
+      0.00964649673551321
+    ],
+    "channel_order": [
+      "mean",
+      "std",
+      "min",
+      "max",
+      "rms",
+      "skew",
+      "kurtosis",
+      "spo2",
+      "bpm",
+      "motion_level"
+    ]
+  },
+  "input_quantization": {
+    "scale": 0.09167968481779099,
+    "zero_point": -39
+  },
+  "output_quantization": {
+    "scale": 0.00390625,
+    "zero_point": -128
+  }
+}
